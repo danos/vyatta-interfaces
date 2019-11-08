@@ -99,6 +99,8 @@ sub add_vif {
       unless defined($parent);
 
     my $name = "$dev.$vif";
+    my $vopt = "";
+    $vopt = "bridge_binding on" if $parent->type() eq "switch";
 
     $config = new Vyatta::Config( $parent->path() ) unless defined($config);
 
@@ -117,21 +119,20 @@ sub add_vif {
             $pvid_opt = "proto $pvid" if ( defined($pvid) );
 
             warn_failure(
-"ip link add link $dev name $outer_vname type vlan id $vlan $pvid_opt"
+"ip link add link $dev name $outer_vname type vlan id $vlan $pvid_opt $vopt"
             );
             if ( $dev =~ /^sw/ ) {
                 Vyatta::Interface::add_interface_redirect( $outer_vname, 1 );
             }
             warn_failure("ip link set $outer_vname up") if ( $parent->up() );
         }
-        $vlan = $inner_vlan  if defined($inner_vlan);
-        $dev  = $outer_vname if defined($inner_vlan);
+        $vlan = $inner_vlan;
+        $dev  = $outer_vname;
+        $vopt  = "";
     }
 
     my $pvid_opt = "";
     $pvid_opt = "proto $pvid" if ( !defined($inner_vlan) && defined($pvid) );
-    my $vopt = "";
-    $vopt = "bridge_binding on" if $parent->type() eq "switch";
 
     warn_failure(
         "ip link add link $dev name $name type vlan id $vlan $pvid_opt $vopt");
@@ -311,6 +312,8 @@ sub update_ivlan {
     my $pvid       = $config->returnValue("vlan-protocol");
     $pvid = 0x8100 unless defined($pvid);
     my $proto_opt = "proto $pvid";
+    my $vopt = "";
+    $vopt= "bridge_binding on" if $parent->type() eq "switch";
 
     # 1) inner vlan change
     # 2) vlan only => vlan + inner vlan
@@ -321,10 +324,10 @@ sub update_ivlan {
             # 2)
             $outer_name = "$dev.0$vlan";
             warn_failure(
-                "ip link set dev $inner_name type vlan id 0 proto 0x8100")
+"ip link set dev $inner_name type vlan id 0 proto 0x8100 bridge_binding off")
               if ( -d "/sys/class/net/$inner_name" );
             warn_failure(
-"ip link add link $dev name $outer_name type vlan id $old_vlan $proto_opt"
+"ip link add link $dev name $outer_name type vlan id $old_vlan $proto_opt $vopt"
             ) if ( -d "/sys/class/net/$dev" );
             warn_failure(
                 "ip link set dev $inner_name link $outer_name type vlan")
@@ -348,7 +351,7 @@ sub update_ivlan {
         if ( defined($old_inner_vlan) ) {
             warn_failure("ip link set dev $inner_name type vlan id 0")
               if ( -d "/sys/class/net/$inner_name" );
-            warn_failure("ip link set dev $inner_name link $dev type vlan")
+            warn_failure("ip link set dev $inner_name link $dev type vlan $vopt")
               if ( -d "/sys/class/net/$inner_name" );
             my $used = 0;
             if ( defined($outer_name) && -d "/sys/class/net/$outer_name" ) {

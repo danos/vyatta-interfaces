@@ -53,7 +53,6 @@ sub main {
     my ($validate_dp_interface);
     my ( $validate_interface, @addrs, $conf_line );
     my ( $dev_mtu, $check_mtu, $action, $check_dev_mtu );
-    my ($garp);
     my ($subports);
 
     GetOptions(
@@ -105,7 +104,6 @@ sub main {
         # work to improve validation and commit times.  However, as it's
         # hard to be 100% sure all users have been removed, code is being
         # left for now.
-        "garp=s"                => \$garp,
         "validate-dp-interface" => \$validate_dp_interface,
 
     ) or usage();
@@ -145,10 +143,6 @@ sub main {
     update_dev_mtu( $dev, $dev_mtu, $action ) if ($dev_mtu);
     validate_dev_mtu( $dev, $check_dev_mtu, $action ) if ($check_dev_mtu);
     process_breakout( $action, $subports, $dev ) if defined($subports);
-
-    # See note above about deprecated code following validation and commit
-    # speed-up work.
-    process_garp_cmd( $action, $garp, $dev ) if ($garp);
 
     exit 0;
 }
@@ -1273,36 +1267,6 @@ sub update_dev_mtu {
         warn_failure("ip link set $vifname mtu $vif_mtu")
           if ( -d "/sys/class/net/$vifname" );
     }
-}
-
-# Likely no longer used following validation and commit time improvement work.
-sub setup_garp {
-    return unless eval 'use Vyatta::VPlaned; 1';
-
-    my ( $action, $garp, $ifname ) = @_;
-    my $value;
-    my $cstore = new Vyatta::VPlaned;
-    my ( $pkt, $dp_action ) = split( ',', $garp );
-
-    if ( $dp_action eq 'drop' ) {
-        $value = 0;
-    } else {
-        $value = 1;
-    }
-
-    $cstore->store( "garp $ifname $pkt",
-        "arp gratuitous $action $ifname $pkt $dp_action", "$ifname" );
-}
-
-# Likely no longer used following validation and commit time improvement work.
-sub process_garp_cmd {
-    my ( $action, $garp, $dev ) = @_;
-    my $value;
-
-    if ( !defined($dev) ) {
-        $dev = "all";
-    }
-    setup_garp( $action, $garp, $dev );
 }
 
 sub process_breakout {

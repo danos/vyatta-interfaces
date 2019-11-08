@@ -3,9 +3,9 @@ SUBDIRS = . tests
 etcdir = /etc
 share_perl5dir = $(datarootdir)/perl5/Vyatta
 templatedir = $(datadir)/vyatta-op/templates
+opfnsdir = $(datadir)/vyatta-op/functions
 tmplscriptdir = $(datadir)/tmplscripts
 yangdir = /usr/share/configd/yang
-lib_python_platformdir = /usr/lib/python3/dist-packages/vyatta/platform
 lib_python_interfacesdir = /usr/lib/python3/dist-packages/vyatta/interfaces
 lib_python_switchconfigdir = /usr/lib/python3/dist-packages/vyatta
 lib_python_dscpdir = /usr/lib/python3/dist-packages/vyatta
@@ -14,7 +14,6 @@ bin_SCRIPTS = scripts/vyatta-show-interfaces.pl
 bin_SCRIPTS += scripts/vyatta-vxlan-op
 bin_SCRIPTS += scripts/vyatta-switch-op
 bin_SCRIPTS += scripts/vyatta-switch-stp-op
-bin_SCRIPTS += scripts/vyatta-platform-util
 sbin_SCRIPTS = scripts/vyatta-interfaces.pl
 sbin_SCRIPTS += scripts/vyatta-interfaces-garp
 sbin_SCRIPTS += scripts/validate-interfaces.pl
@@ -52,7 +51,6 @@ share_perl5_DATA += lib/Vyatta/VIFConfig.pm
 share_perl5_DATA += lib/Vyatta/Platform.pm
 share_perl5_DATA += lib/Vyatta/UnnumberedInterface.pm
 
-lib_python_platform_DATA = lib/vyatta/platform/detect.py
 lib_python_interfaces_DATA = lib/vyatta/interfaces/interfaces.py
 lib_python_switchconfig_DATA = lib/vyatta/switchconfig.py
 lib_python_dscp_DATA = lib/vyatta/DSCP.py
@@ -71,3 +69,7 @@ install-exec-hook:
 	cd templates && $(cpiop) $(DESTDIR)$(templatedir)
 	mkdir -p $(DESTDIR)$(yangdir)
 	cd yang && $(cpiop) $(DESTDIR)$(yangdir)
+	mkdir -p $(DESTDIR)$(opfnsdir)/tech-support.d
+	cd scripts/tech-support && $(cpiop) $(DESTDIR)$(opfnsdir)/tech-support.d
+	mkdir -p $(DESTDIR)$(opfnsdir)/tech-support-brief.d
+	cd scripts/tech-support-brief && $(cpiop) $(DESTDIR)$(opfnsdir)/tech-support-brief.d

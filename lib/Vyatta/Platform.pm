@@ -13,7 +13,7 @@ use warnings;
 use Vyatta::Configd;
 use Vyatta::FeatureConfig qw(get_cfg get_cfg_file get_cfg_value);
 use Vyatta::SwitchConfig
-  qw(get_hwcfg is_hw_interface is_hw_interface_cached get_hwcfg_map get_hwcfg_file );
+  qw(get_hwcfg is_hw_interface_cached get_hwcfg_map get_hwcfg_file );
 require Exporter;
 
 our @ISA = qw (Exporter);
@@ -28,6 +28,22 @@ Readonly my $SW_INTERFACE_FEATURE_SECTION  => 'software-interface-features';
 Readonly my $ALL_INTERFACE_FEATURE_SECTION => 'all-interface-features';
 
 my $client = Vyatta::Configd::Client->new();
+
+sub get_platform_type {
+    return unless eval 'use Vyatta::PlatformConfig; 1';
+
+    my ( $platf_type, $def_platf_type );
+
+    $def_platf_type = Vyatta::PlatformConfig::get_cfg( 'platform-type', 1 );
+    return unless defined($def_platf_type) && $def_platf_type ne "";
+
+    $platf_type = Vyatta::PlatformConfig::get_cfg('platform-type');
+    if ( !defined($platf_type) || $platf_type eq "" ) {
+        $platf_type = $def_platf_type;
+    }
+
+    return $platf_type;
+}
 
 #
 # Walk the given tree of config, calling the func for each new node, and going
@@ -62,8 +78,8 @@ sub walk_tree {
 #
 sub check_intf_config_files {
     my (
-        $hw_file, $conf_file, $words,   $feat_path,
-        $ifname,  $intf_type, $section, $allmsg
+        $hw_file, $conf_file, $words,
+        $ifname,  $intf_type, $section,
     ) = @_;
     my $use_intf_type;
 
@@ -77,10 +93,6 @@ sub check_intf_config_files {
     return 0 unless defined($val);
 
     if ( $val == 0 ) {
-        push(
-            @{$allmsg},
-            ( "[$feat_path]", "Not supported on $ifname on this platform\n" )
-        );
         return 1;
     }
 
@@ -100,10 +112,6 @@ sub check_intf_config_files {
             return 0 if ( "dp0" . $i eq $ifname );
         }
     }
-    push(
-        @{$allmsg},
-        ( "[$feat_path]", "Not supported on $ifname on this platform\n" )
-    );
     return 1;
 }
 
@@ -142,7 +150,8 @@ sub check_platform_interface_feature {
     my $remove    = 3;
 
     if ( $intf_type eq "dataplane" or $intf_type eq "switch" ) {
-        if ( defined $vif and $vif eq "vif" ) {
+        # Is this a vif command and will there be at least one word left?
+        if ( defined $vif and $vif eq "vif" and scalar @words_arr > 5 ) {
             $intf_type = $intf_type . "_vif";
             $remove    = 5;
         }
@@ -157,15 +166,25 @@ sub check_platform_interface_feature {
 
         # if this is a pure SW interface
         $val =
-          check_intf_config_files( $hw_file, $conf_file, $words, $feat_path,
-            $ifname, $intf_type, $SW_INTERFACE_FEATURE_SECTION, $allmsg );
-        return 1 if $val == 1;
+          check_intf_config_files( $hw_file, $conf_file, $words,
+            $ifname, $intf_type, $SW_INTERFACE_FEATURE_SECTION );
+        if ( $val == 1 ) {
+            push(
+                @{$allmsg},
+                ( "[$feat_path]", "Not supported on software interface $ifname on this platform\n" )
+            );
+            return 1;
+        }
     }
 
-    $val = check_intf_config_files( $hw_file, $conf_file, $words, $feat_path,
-        $ifname, $intf_type, $ALL_INTERFACE_FEATURE_SECTION, $allmsg );
+    $val = check_intf_config_files( $hw_file, $conf_file, $words,
+        $ifname, $intf_type, $ALL_INTERFACE_FEATURE_SECTION );
 
     if ( $val == 1 ) {
+        push(
+            @{$allmsg},
+            ( "[$feat_path]", "Not supported on $ifname on this platform\n" )
+        );
         return 1;
     }
     if ( not defined %{$interfaces}{$ifname} ) {
@@ -175,11 +194,26 @@ sub check_platform_interface_feature {
         return;
     }
 
-    my $retval =
-      check_intf_config_files( $hw_file, $conf_file, $words, $feat_path,
-        $ifname, $intf_type, $HW_INTERFACE_FEATURE_SECTION, $allmsg );
+    $val =
+      check_intf_config_files( $hw_file, $conf_file, $words,
+        $ifname, $intf_type, $HW_INTERFACE_FEATURE_SECTION );
+    if ( $val == 1 ) {
+        if ( check_intf_config_files( $hw_file, $conf_file, "hardware-switching",
+                                      $ifname, $intf_type,
+                                      $HW_INTERFACE_FEATURE_SECTION ) == 0 ) {
+            push(
+                @{$allmsg},
+                ( "[$feat_path]", "Interface dataplane $ifname must have hardware-switching disabled\n" )
+            );
+        } else {
+            push(
+                @{$allmsg},
+                ( "[$feat_path]", "Not supported on $ifname on this platform\n" )
+            );
+        }
+    }
 
-    return ($retval);
+    return ($val);
 }
 
 sub find_physical_switch {
@@ -229,9 +263,9 @@ sub find_blocked_interfaces {
 # specific interfaces. An interface type is taken from the cli, with '_vif'
 # appended if it is a vif.
 sub check_interface_features {
+    my $swcfg = shift;
     my $fail;
     my @allmsg;
-    my ( $swcfg, $sw_fh ) = get_hwcfg_file();
     my %interfaces = get_hwcfg_map($swcfg);
     my ( $conf_file, $conf_fh ) = get_cfg_file($PLATFORM_CONF);
 
@@ -246,7 +280,6 @@ sub check_interface_features {
             $interfaces{$i} = "hw-disabled" if $allowed;
         }
     }
-    close($sw_fh) if defined($sw_fh);
 
     # Find out which interface has the physical switch. We need this to work
     # out whether a switch vif belongs to a switch with a hardware interfaces.
@@ -346,8 +379,12 @@ sub check_security_features {
 # of a bridge or a switch. We can't block based on it being a bridge as there
 # may already be customers using that config, but we can block based on the interface
 # being part of a switch.
+# If the platform type is switch, then hardware interfaces may be part of the
+# implicit switch
 sub check_proxy_arp {
+    my $swcfg = shift;
     my @allmsg;
+    my $platf_type = get_platform_type();
 
     my $cfg = Vyatta::Config->new("interfaces");
     foreach my $intf_type ( $cfg->listNodes() ) {
@@ -355,7 +392,15 @@ sub check_proxy_arp {
             my $arp = ( $cfg->exists("$intf_type $intf ip enable-proxy-arp") );
             if ( defined($arp) ) {
                 my $switch = $cfg->exists("$intf_type $intf switch-group");
-                if ( is_hw_interface($intf) or defined($switch) ) {
+                if (
+                    (
+                            defined($platf_type)
+                        and $platf_type eq 'switch'
+                        and is_hw_interface_cached( $intf, $swcfg )
+                    )
+                    or defined($switch)
+                  )
+                {
                     push( @allmsg,
                         "[interfaces $intf_type $intf ip enable-proxy-arp]",
                         "Not supported on L2 interface $intf\n" );

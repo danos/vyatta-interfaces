@@ -1,2 +1,3 @@
 usr/share/configd/yang/vyatta-op-show-switch-v1.yang
 opt/vyatta/bin/vyatta-switch-op
+opt/vyatta/share/vyatta-op/functions/tech-support.d/0560-vyatta-interfaces-switch

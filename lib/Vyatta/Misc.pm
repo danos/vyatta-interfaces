@@ -5,7 +5,9 @@
 # Description: Implements miscellaneous commands
 
 # **** License ****
-# Copyright (c) 2017-2019, AT&T Intellectual Property. All rights reserved.
+# Copyright (c) 2019 AT&T Intellectual Property.
+# All Rights Reserved.
+#
 # Copyright (c) 2014 by Brocade Communications Systems, Inc.
 # All rights reserved.
 #
@@ -18,12 +20,13 @@
 
 package Vyatta::Misc;
 use strict;
+use POSIX;
 use Vyatta::ioctl;
 
 require Exporter;
 
 our @ISA    = qw(Exporter);
-our @EXPORT = qw(getInterfaces getIP getNetAddIP get_sysfs_value
+our @EXPORT = qw(getInterfaces getIP getNetAddIP get_sysfs_value get_timestr
   is_address_enabled
   get_intf_cfg_addr isIpAddress is_ip_v4_or_v6 interface_description
   is_local_address
@@ -48,6 +51,12 @@ sub get_sysfs_value {
     chomp $value if defined $value;
     close $statf;
     return $value;
+}
+
+sub get_timestr {
+    my $t = shift;
+
+    return strftime( "%Y-%m-%dT%T%z", localtime($t) );
 }
 
 # check if any non-dhcp addresses configured

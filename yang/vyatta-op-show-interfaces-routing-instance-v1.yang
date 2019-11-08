@@ -1,6 +1,6 @@
 module vyatta-op-show-interfaces-routing-instance-v1 {
 	namespace "urn:vyatta.com:mgmt:vyatta-op-show-interfaces-routing-instance:1";
-	prefix vyatta-op-show-interfaces-system-v1;
+	prefix vyatta-op-show-interfaces-routing-instance-v1;
 
 	import vyatta-opd-extensions-v1 {
 		prefix opd;
@@ -54,6 +54,10 @@ module vyatta-op-show-interfaces-routing-instance-v1 {
 		 SPDX-License-Identifier: BSD-3-Clause
 
 		 Defines the top 'routing-instance' level under 'show interfaces' for operational CLI";
+
+	revision 2019-08-27 {
+		description "Fix the prefix assigned to this module.";
+	}
 
 	revision 2018-11-19 {
 		description "Initial version";

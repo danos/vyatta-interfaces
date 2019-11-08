@@ -14,12 +14,12 @@ module vyatta-interfaces-vti-v1 {
 
 	organization "AT&T Inc.";
 	contact
-
 		"AT&T
 		 Postal: 208 S. Akard Street
 		         Dallas, TX 75202
 		         USA
 		 Web: www.att.com";
+
 	description
 		"Copyright (c) 2017, AT&T Intellectual Property.
 		 All rights reserved.

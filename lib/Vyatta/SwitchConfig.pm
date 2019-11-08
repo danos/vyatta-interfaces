@@ -296,48 +296,7 @@ sub update_port_attr {
 sub check_software_features {
     my ( $ifname, $cfg ) = @_;
     my $cfg_prefix   = "interfaces dataplane $ifname";
-    my @generic_cmds = (
-        "address",               "bfd",
-        "bridge-group",          "dhcp-options",
-        "dhcpv6-options",        "firewall",
-        "flow-monitoring",       "policy",
-        "receive-cpu-affinity",  "sflow",
-        "transmit-cpu-affinity", "vif",
-        "vrrp vrrp-group",       "xconnect"
-    );
-    my @ip_cmds = (
-        "igmp",       "multicast",
-        "ospf",       "pim",
-        "rip",        "tcp-mss",
-        "unnumbered", "rpf-check loose",
-        "rpf-check strict"
-    );
-    my @ipv6_cmds = (
-        "address",            "disable",
-        "disable-forwarding", "mld",
-        "ospfv3",             "pim",
-        "ripng",              "router-advert",
-        "tcp-mss",            "unnumbered"
-    );
     my $sw_feat_found = 0;
-    foreach my $cmd (@generic_cmds) {
-        if ( $cfg->exists("$cfg_prefix $cmd") ) {
-            $sw_feat_found = 1;
-            last;
-        }
-    }
-    foreach my $cmd (@ip_cmds) {
-        if ( $cfg->exists("$cfg_prefix ip $cmd") ) {
-            $sw_feat_found = 1;
-            last;
-        }
-    }
-    foreach my $cmd (@ipv6_cmds) {
-        if ( $cfg->exists("$cfg_prefix ipv6 $cmd") ) {
-            $sw_feat_found = 1;
-            last;
-        }
-    }
     if ( $cfg->exists("$cfg_prefix switch-group") ) {
         my $cfg_switch = $cfg->returnValue("$cfg_prefix switch-group switch");
         if ( defined($cfg_switch)

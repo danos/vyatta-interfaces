@@ -418,6 +418,18 @@ sub operstate {
     return $status;
 }
 
+sub opstate_changes {
+    my $self = shift;
+
+    return Vyatta::Misc::get_sysfs_value( $self->{name}, "opstate_changes" );
+}
+
+sub opstate_age {
+    my $self = shift;
+
+    return Vyatta::Misc::get_sysfs_value( $self->{name}, "opstate_age" );
+}
+
 # device description information in kernel (future use)
 sub description {
     my $self = shift;

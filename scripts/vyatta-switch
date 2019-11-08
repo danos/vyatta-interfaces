@@ -54,7 +54,8 @@ sub call_action_by_name {
 sub update_switch {
     my ($name) = @_;
     return if ( -d "/sys/class/net/$name" );
-    system("ip link add $name type bridge vlan_filtering 1 vlan_default_pvid 0");
+    system(
+        "ip link add $name type bridge vlan_filtering 1 vlan_default_pvid 0");
     add_interface_redirect( $name, 1 );
     return;
 }
@@ -488,21 +489,15 @@ my %defaulted_swports;
 # put specified/all suitable interfaces into the default state
 #
 sub set_default_state {
+    my $platf_type = shift;
+
     my %swport_map = get_hwcfg();
     my $cmd;
-
-    my $def_platf_type = get_cfg( 'platform-type', 1 );
-    die "Default platform type not found"
-      unless defined($def_platf_type) && $def_platf_type ne "";
 
     my @def_swports = get_default_switchports($client);
 
     # Create hash for later use in update_interfaces
     %defaulted_swports = map { $_ => 1 } @def_swports;
-    my $platf_type = get_cfg('platform-type');
-    if ( !defined($platf_type) || $platf_type eq "" ) {
-        $platf_type = $def_platf_type;
-    }
 
     if ( $platf_type eq 'switch' ) {
         gen_default_switches();
@@ -627,6 +622,8 @@ sub supported_interface {
 }
 
 sub update_interfaces {
+    my $platf_type = shift;
+
     cache_interfaces();
     my %hwport_map = get_hwcfg();
 
@@ -662,21 +659,23 @@ sub update_interfaces {
         # parent might not be switch; vifs or bonding slaves
         next if defined $current_switch and not $current_switch =~ /^sw/;
 
+        if ( $platf_type eq 'switch' ) {
+            #
+            # For a hardware interface implicitly assigned to the base
+            # switch, find the implicit switch name.  This may be different
+            # from the current switch when changing from a configured switch
+            # to the implicit switch.
+            #
+            if ( defined( $defaulted_swports{$ifname} ) ) {
+                my $switch = $hwport_map{$ifname};
+                my $sw_name = get_softswitch_name( $client, $switch );
+
+                $configured_switch = $sw_name;
+            }
+        }
+
         # Ensure that the switch exists
         update_switch($configured_switch) if defined $configured_switch;
-
-        #
-        # For a hardware interface implicitly assigned to the base
-        # switch, find the implicit switch name.  This may be different
-        # from the current switch when changing from a configured switch
-        # to the implicit switch.
-        #
-        if ( defined( $defaulted_swports{$ifname} ) ) {
-            my $switch = $hwport_map{$ifname};
-            my $sw_name = get_softswitch_name( $client, $switch );
-
-            $configured_switch = $sw_name;
-        }
 
         if ( not defined $current_switch and not defined $configured_switch ) {
 
@@ -716,18 +715,28 @@ sub update_interfaces {
 
 sub lock {
     open our $file, '<', $0 or die;
-    flock ($file, LOCK_EX);
+    flock( $file, LOCK_EX );
 }
 
 sub unlock {
     open our $file, '<', $0 or die;
-    flock ($file, LOCK_UN);
+    flock( $file, LOCK_UN );
 }
 
 sub set_default_state_and_update {
     lock();
-    set_default_state();
-    update_interfaces();
+
+    my $def_platf_type = get_cfg( 'platform-type', 1 );
+    die "Default platform type not found"
+      unless defined($def_platf_type) && $def_platf_type ne "";
+
+    my $platf_type = get_cfg('platform-type');
+    if ( !defined($platf_type) || $platf_type eq "" ) {
+        $platf_type = $def_platf_type;
+    }
+
+    set_default_state($platf_type);
+    update_interfaces($platf_type);
     unlock();
 }
 

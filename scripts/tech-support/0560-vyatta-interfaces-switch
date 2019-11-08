@@ -1,0 +1,17 @@
+#! /bin/bash
+#
+# Copyright (c) 2018, AT&T Intellectual Property.  All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+source "$(cd "$(dirname "${0}")" && pwd -P)"/../tech-support.functions
+
+header Switching
+time_out "run show switch"
+
+for sw in $(/opt/vyatta/sbin/vyatta-interfaces.pl --show=switch --filter-out='\.\d+')
+do header "Operational switch state for $sw"
+	time_out "run show switch $sw spanning-tree brief"
+	time_out "run show switch $sw macs"
+	time_out "run show interfaces switch $sw vlan statistics"
+done

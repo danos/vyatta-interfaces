@@ -18,6 +18,8 @@ use Vyatta::VPlaned;
 use Vyatta::RestoreIPv6Addr;
 use Vyatta::UnnumberedInterface;
 
+use vyatta::proto::SpeedConfig;
+
 sub bring_up_dhcp {
     my $intf = shift;
     my $cfg  = new Vyatta::Config( $intf->path() );
@@ -49,6 +51,8 @@ sub bring_up_required_interfaces {
         next if $intf->up();
         next if not $intf->configured();
         next if $intf->disabled();
+        my $cfg = new Vyatta::Config( $intf->path() );
+        next if $cfg->exists('breakout-reserved-for');
         my @parent_intf = split( /\./, $name, 2 );
         if ( @parent_intf == 2 ) {
             my $parent_name = $parent_intf[0];
@@ -92,27 +96,44 @@ sub set_link_speed {
         '100g' => 100000,
     );
 
+    my %duplex_option = (
+        'auto' => SpeedConfig::Duplex::AUTO,
+        'half' => SpeedConfig::Duplex::HALF,
+        'full' => SpeedConfig::Duplex::FULL,
+    );
+
     while ( my $name = shift ) {
-        my $intf      = new Vyatta::Interface($name);
-        my $cfg       = new Vyatta::Config( $intf->path() );
+        my $intf   = new Vyatta::Interface($name);
+        my $cfg    = new Vyatta::Config( $intf->path() );
         my $duplex = $cfg->returnValue('duplex') if $cfg->exists('duplex');
-        my $speed = $cfg->returnValue('speed') if $cfg->exists('speed');
+        my $speed  = $cfg->returnValue('speed') if $cfg->exists('speed');
 
         next unless -d "/sys/class/net/$name";
+        next unless defined $speed;
+        my $speed_key = $speed eq "auto" ? "auto" : "numspeed";
 
         # You can't set the duplex w/o also setting a speed.
-        if ( defined $speed ) {
-            my $mbits = $port_speeds{$speed};
-            if ( defined $mbits ) {
-                $ctrl->store(
-                    "speed set $name",
-                    "speed set $name $mbits $duplex",
-                    "$name",
-                    "SET"
-                );
-            } else {
-                warn "unsupported interface speed $speed\n";
-            }
+        my $mbits = $port_speeds{$speed};
+        if ( defined $mbits ) {
+            $duplex = $duplex_option{$duplex};
+            next unless defined $duplex;
+            my $speedProto = SpeedConfig->new(
+                {
+                    ifname        => $name,
+                    duplex_option => $duplex,
+                    $speed_key    => $mbits,
+                }
+            );
+
+            $ctrl->store_pb(
+                "speed set $name",
+                $speedProto,
+                "vyatta:speed",
+                "$name",
+
+            );
+        } else {
+            warn "unsupported interface speed $speed\n";
         }
     }
 }

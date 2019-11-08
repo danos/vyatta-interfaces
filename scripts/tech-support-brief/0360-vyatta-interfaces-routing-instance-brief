@@ -1,0 +1,20 @@
+#! /bin/bash
+#
+# Copyright (c) 2014-2016 by Brocade Communications Systems, Inc.
+# All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+source "$(cd "$(dirname "${0}")" && pwd -P)"/../tech-support.functions
+
+eval "vrf_names=($(cli-shell-api listActiveNodes routing routing-instance))"
+for vrf_name in "${vrf_names[@]}"; do
+	header "Interfaces - Routing Instance: $vrf_name"
+	do_cmd run show interfaces routing-instance "$vrf_name"
+done
+
+
+
+
+

@@ -5,6 +5,8 @@ opt/vyatta/sbin/vyatta-tunnel-deferred.pl
 opt/vyatta/sbin/vyatta-tunnel-encap-to-type
 opt/vyatta/sbin/vyatta-update-unnumbered.pl
 opt/vyatta/share/tmplscripts
+opt/vyatta/share/vyatta-op/functions/tech-support.d/0310-vyatta-interfaces
+opt/vyatta/share/vyatta-op/functions/tech-support-brief.d/0310-vyatta-interfaces-brief
 opt/vyatta/share/vyatta-op/templates/clear
 opt/vyatta/share/vyatta-op/templates/monitor
 opt/vyatta/share/vyatta-op/templates/show/vxlan

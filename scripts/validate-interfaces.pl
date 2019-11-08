@@ -23,7 +23,7 @@ import Vyatta::Dataplane;
 use Vyatta::DistributedDataplane;
 use Vyatta::Interface;
 
-use Vyatta::SwitchConfig qw(get_hwcfg check_software_features);
+use Vyatta::SwitchConfig qw(check_software_features get_hwcfg_map get_hwcfg_file);
 use Vyatta::Platform qw(check_interface_features check_proxy_arp);
 
 # This is a "modulino" (http://www.drdobbs.com/scripts-as-modules/184416165)
@@ -43,7 +43,9 @@ sub main {
     my $cfg = Vyatta::Config->new();
     my $status = 0;    # 0 = all ok, non-zero means at least one check failed.
 
-    $status |= check_switch_config($cfg);
+    my ( $swcfg, $sw_fh ) = get_hwcfg_file();
+
+    $status |= check_switch_config($cfg, $swcfg);
 
     my ( $num_errs, $num_warns ) = Vyatta::Interface::check_dataplane_mtu($cfg);
     $status |= $num_errs;
@@ -54,12 +56,13 @@ sub main {
 
     $status |= validate_link_speeds_and_duplex($cfg);
 
-    $status |= Vyatta::Platform::check_interface_features();
+    $status |= Vyatta::Platform::check_interface_features($swcfg);
 
-    $status |= Vyatta::Platform::check_proxy_arp();
+    $status |= Vyatta::Platform::check_proxy_arp($swcfg);
 
     $status |= validate_breakout($cfg);
 
+    close($sw_fh) if defined($sw_fh);
     return $status;
 }
 
@@ -82,7 +85,7 @@ sub create_dataplane_cache {
 
 # Returns 1 (true) if ok, 0 (false) if not.
 sub check_switch_config {
-    my $cfg = shift;
+    my ( $cfg, $swcfg ) = @_;
 
     # Determine if we need to check hardware.
     my $check_hw = 0;
@@ -97,7 +100,7 @@ sub check_switch_config {
     }
     return 0 if ( !$check_hw );
 
-    my %swport_map = get_hwcfg();
+    my %swport_map = get_hwcfg_map($swcfg);
     my %err_map;
     foreach my $dpInt ( $cfg->listNodes("interfaces dataplane") ) {
         next
@@ -223,9 +226,11 @@ sub validate_parent_breakout_cfg {
     my @cfg_nodes = $cfg->listNodes("$intf");
     my $msg       = "";
 
-    # when an interface is broken out, the only other commands
-    # permitted on it are description and speed
-    my @permitted_cmds = ( 'description', 'speed', 'breakout' );
+    # when an interface is broken out, or reserved for breakout of
+    # another interface, the only other commands permitted on it are
+    # description and speed
+    my @permitted_cmds = ( 'description', 'speed', 'breakout',
+                           'breakout-reserved-for' );
 
     for my $cmd (@cfg_nodes) {
         if ( !grep /$cmd/, @permitted_cmds ) {
@@ -269,7 +274,8 @@ sub validate_breakout {
     my @dp_intfs = $config->listNodes();
     my $msg      = '';
     foreach my $intf (@dp_intfs) {
-        if ( $config->exists("$intf breakout") ) {
+        if ( $config->exists("$intf breakout") ||
+             $config->exists("$intf breakout-reserved-for") ) {
             if ( !( $intf =~ /^dp(\d+)ce(\d+)$/ ) ) {
                 $msg =
                     $msg

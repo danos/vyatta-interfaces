@@ -5,6 +5,7 @@
 # **** License ****
 #
 # Copyright (c) 2018-2019, AT&T Intellectual Property. All rights reserved.
+#
 # Copyright (c) 2014-2017 by Brocade Communications Systems, Inc.
 # All rights reserved.
 #
@@ -30,9 +31,11 @@ use Vyatta::InterfaceStats;
 use Vyatta::Dataplane;
 use Vyatta::DataplaneStats;
 use Getopt::Long;
+use IPC::Run3;
 use POSIX;
 use Time::Duration;
 use Time::HiRes qw( clock_gettime CLOCK_REALTIME );
+use Try::Tiny;
 use NetAddr::IP;
 use JSON qw( decode_json );
 
@@ -58,6 +61,8 @@ my %action_hash = (
     'show-brief'     => \&run_show_intf_brief,
     'show-count'     => \&run_show_counters,
     'show-extensive' => \&run_show_intf_extensive,
+    'show-system'    => \&run_show_intf_system_all,
+    'show-system-up' => \&run_show_intf_system_up,
     'clear'          => \&run_clear_intf,
     'reset'          => \&run_reset_intf,
     'dhcp_allowed'   => \&run_dhcp_allowed,
@@ -245,24 +250,6 @@ sub get_vrrp_intf {
     return @list;
 }
 
-sub get_opstate_changes {
-    my $intf = shift;
-    return unless -e "/sys/class/net/$intf/opstate_changes";
-
-    return get_sysfs_value( $intf, "opstate_changes" );
-}
-
-sub get_opstate_age {
-    my $intf = shift;
-    my $age = get_sysfs_value( $intf, "opstate_age" );
-    return $age;
-}
-
-sub get_timestr {
-    my $t = shift;
-    return strftime( "%Y-%m-%dT%T%z", localtime($t) );
-}
-
 #
 # The "action" routines
 #
@@ -307,10 +294,10 @@ sub run_show_intf {
 
         print "$line\n";
 
-        my $transns = get_opstate_changes($intf);
+        my $transns = $interface->opstate_changes();
         if ($transns) {
             my $opstate = $interface->operstate();
-            my $age     = get_opstate_age($intf);
+            my $age     = $interface->opstate_age();
             print "   ";
             print " uptime: " . duration_exact($age)
               if ( $opstate eq 'up' );
@@ -346,6 +333,46 @@ sub run_show_intf {
         printf( $fmt,
             map { get_counter_val( $clear{$_}, $stats{$_} ) } @tx_stat_vars );
     }
+}
+
+sub show_intf_system {
+    my $enabled_only = shift;
+
+    my @cmd = ( "ip", "-s", "-d", "link", "show" );
+    push( @cmd, "up" ) if ($enabled_only);
+
+    my @lines;
+    try {
+        if ( !run3( \@cmd, undef, \@lines ) ) {
+            return;
+        }
+    }
+    catch {
+        die("Failed to exec ip: $_");
+    };
+
+    my $ignore = "\.spathintf";
+    my $skip   = 0;
+    foreach my $line (@lines) {
+        if ( $skip && $line =~ /^\s+/ ) {
+            next;
+        } elsif ( $line =~ /^[0-9]+:\s+($ignore):/ ) {
+            $skip = 1;
+            next;
+        } else {
+            $skip = 0;
+        }
+
+        print($line);
+    }
+}
+
+sub run_show_intf_system_all {
+    return show_intf_system(0);
+}
+
+sub run_show_intf_system_up {
+    return show_intf_system(1);
 }
 
 sub conv_brief_code {

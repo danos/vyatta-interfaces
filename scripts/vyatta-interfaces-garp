@@ -13,6 +13,8 @@ use lib "/opt/vyatta/share/perl5/";
 use Getopt::Long;
 use Vyatta::VPlaned;
 
+use vyatta::proto::GArpConfig;
+
 # This is a "modulino" (http://www.drdobbs.com/scripts-as-modules/184416165)
 exit __PACKAGE__->main()
   unless caller();
@@ -42,19 +44,32 @@ EOF
 
 sub setup_garp {
     my ( $action, $garp, $ifname ) = @_;
-    my $value;
     my $cstore = new Vyatta::VPlaned;
     my ( $pkt, $dp_action ) = split( ',', $garp );
 
-    if ( $dp_action eq 'drop' ) {
-        $value = 0;
-    }
-    else {
-        $value = 1;
-    }
+    my $value =
+      $dp_action eq 'drop'
+      ? GArpConfig::GarpPktAction::GARP_PKT_DROP()
+      : GArpConfig::GarpPktAction::GARP_PKT_UPDATE();
 
-    $cstore->store( "garp $ifname $pkt",
-        "arp gratuitous $action $ifname $pkt $dp_action", "$ifname" );
+    my $actionBool = $action eq 'SET' ? 1 : 0;
+
+    my $arpOp =
+      $pkt eq 'request'
+      ? GArpConfig::ArpOp::ARPOP_REQUEST()
+      : GArpConfig::ArpOp::ARPOP_REPLY();
+
+    my $garpconfig = GArpConfig->new(
+        {
+            ifname => $ifname,
+            action => $value,
+            set    => $actionBool,
+            op     => $arpOp,
+        }
+    );
+
+    $cstore->store_pb( "garp $ifname $pkt", $garpconfig, "vyatta:cmd_arp_cfg",
+        "$ifname");
 }
 
 sub process_garp_cmd {

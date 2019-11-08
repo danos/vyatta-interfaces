@@ -1,1 +1,3 @@
 opt/vyatta/sbin/vrf-bind-interface
+opt/vyatta/share/vyatta-op/functions/tech-support.d/0360-vyatta-interfaces-routing-instance
+opt/vyatta/share/vyatta-op/functions/tech-support-brief.d/0360-vyatta-interfaces-routing-instance-brief

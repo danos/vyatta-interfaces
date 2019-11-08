@@ -31,6 +31,8 @@ Depends: bmon,
  iftop,
  libfile-slurp-perl,
  libfile-remove-perl,
+ libipc-run3-perl,
+ libtry-tiny-perl,
  libvyatta-dataplane-perl,
  libvyatta-dscp-perl,
  libvyatta-interface-perl,
@@ -253,6 +255,7 @@ Depends: libvyatta-bridge-perl,
  vyatta-update-vifs,
  vyatta-platform-util,
  vyatta-service-bridge (>= 2.4),
+ vyatta-policy-qos-vci,
  ${misc:Depends}, ${yang:Depends}
 Description: vyatta-interfaces-switch-v1 module
  VLAN aware bridging interface configuration
@@ -397,21 +400,6 @@ Architecture: all
 Depends: ${misc:Depends}, ${yang:Depends}, vyatta-interfaces-base
 Description: vyatta-op-clear-interfaces-switch-v1 module
  Operational mode integration for clearing switch interface information
-
-Package: python3-vyatta-platform-detect
-Architecture: all
-Depends: ${misc:Depends}, ${python3:Depends}, dmidecode
-Description: Vyatta platform detection python3 library
- Library containing classes for detecting the platform and associated helpers
-
-Package: vyatta-platform-util
-Architecture: all
-Depends:
- ${misc:Depends},
- python3-vyatta-platform-detect,
- python3,
-Description: Vyatta platform query and configure utility
- Tool for querying platform properties and system setup
 
 Package: python3-vyatta-interfaces
 Architecture: all

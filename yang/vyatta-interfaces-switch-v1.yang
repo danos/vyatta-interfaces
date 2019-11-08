@@ -74,6 +74,9 @@ module vyatta-interfaces-switch-v1 {
 		 allowed VLANs, a PVID, and a set of VLANs to untag on egress
 		 from a port.";
 
+	revision 2019-10-11 {
+		description "QoS config moved to VCI, call to qos-commit.pl removed";
+	}
 	revision 2019-07-04 {
 		description "Add multicast-router leaf to enable multicast forwarding on the switch";
 	}
@@ -231,7 +234,6 @@ module vyatta-interfaces-switch-v1 {
 			configd:end "vyatta-switch --action=update-vlans -- --name=$VAR(@)";
 			configd:end "vyatta-update-vifs $VAR(@)";
 			configd:end "vyatta-intf-end $VAR(@)";
-			configd:end "/opt/vyatta/sbin/qos-commit.pl --update-binding $VAR(@)";
 			configd:priority 310;
 			configd:help "VLAN aware switch";
 			key name;

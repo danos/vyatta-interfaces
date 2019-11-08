@@ -2,7 +2,9 @@
 # Vyatta interface stats functions
 
 # **** License ****
-# Copyright (c) 2018, AT&T Intellectual Property. All rights reserved.
+# Copyright (c) 2019 AT&T Intellectual Property.
+# All Rights Reserved.
+#
 # Copyright (c) 2015 by Brocade Communications Systems, Inc.
 # All rights reserved.
 #
@@ -104,7 +106,7 @@ sub get_counter_val {
     my ( $clear, $now ) = @_;
 
     # no clear - return the current counter
-    return $now if $clear == 0;
+    return $now if !$clear;
 
     # no wrap around return delta
     return $now - $clear unless ( $clear > $now );
