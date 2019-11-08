@@ -1,0 +1,3 @@
+help: Monitor specified virtual-feature-point interface
+allowed: ${vyatta_sbindir}/vyatta-interfaces.pl --show virtual-feature-point
+run: bmon -U -b -r 10 -p $4

@@ -1,0 +1,2 @@
+#!/opt/vyatta/bin/cliexpr
+commit:expression: ($VAR(./local-ip) != "") || (($VAR(./nhrp/map) != "") ||($VAR(./nhrp/dynamic-map) != "")); "Must configure either local-interface (along with NHRP spoke configuration) or local-ip for tunnel $VAR(@)"

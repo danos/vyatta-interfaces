@@ -1,0 +1,26 @@
+#!/bin/bash
+#
+# Copyright (c) 2015 by Brocade Communications Systems, Inc.
+# All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Trivial wrapper around the primary IP address validation function. The key
+# point is that the address may be null, in which case there is no point
+# invoking the perl compiler.
+#
+# The only wrinke is the fact that when called directly from a yang file,
+# the list of addresses is presented as separate arguments ($2, $3, ...). This
+# necessitates "gluing" them back together before passing them to the perl
+# script.
+#
+# $1 - device name
+# $2... - address(es)
+#
+if [ -z "$2" ] ; then
+   exit 0
+fi
+dev=$1
+shift
+#echo "check address, device: $dev, address: [$@]"
+vyatta-interfaces.pl --dev=$dev --valid-addr-commit=$@

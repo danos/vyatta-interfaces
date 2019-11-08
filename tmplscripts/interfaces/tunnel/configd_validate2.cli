@@ -1,0 +1,2 @@
+#!/opt/vyatta/bin/cliexpr
+commit:expression: $VAR(./encapsulation/) != "" ; "Must configure the tunnel encapsulation for $VAR(@)"

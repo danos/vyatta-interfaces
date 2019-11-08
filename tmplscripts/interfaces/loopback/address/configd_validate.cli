@@ -1,0 +1,6 @@
+#!/opt/vyatta/bin/cliexpr
+
+commit:expression: \
+	$VAR(../@) == "lo" || \
+	!(pattern $VAR(@)"^127.0.0.1/" || pattern $VAR(@)"^::1/"); \
+	"can't configure $VAR(@) on $VAR(../@)

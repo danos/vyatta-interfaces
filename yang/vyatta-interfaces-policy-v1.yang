@@ -1,0 +1,132 @@
+module vyatta-interfaces-policy-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-interfaces-policy:1";
+	prefix vyatta-interfaces-policy-v1;
+
+	import vyatta-policy-v1 {
+		prefix policy;
+	}
+	import vyatta-interfaces-v1 {
+		prefix if;
+	}
+	import vyatta-interfaces-dataplane-v1 {
+		prefix interfaces-dataplane;
+	}
+	import vyatta-interfaces-l2tpeth-v1 {
+		prefix interfaces-l2tpeth;
+	}
+	import vyatta-interfaces-bonding-v1 {
+		prefix interfaces-bonding;
+	}
+	import vyatta-interfaces-openvpn-v1 {
+		prefix interfaces-openvpn;
+	}
+	import vyatta-interfaces-tunnel-v1 {
+		prefix interfaces-tunnel;
+	}
+	import vyatta-interfaces-vti-v1 {
+		prefix interfaces-vti;
+	}
+	import vyatta-interfaces-vfp-v1 {
+		prefix interfaces-vfp;
+	}
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+		 Postal: 208 S. Akard Street
+		         Dallas, TX 75202
+		         USA
+		 Web: www.att.com";
+
+	description
+		"Copyright (c) 2017 AT&T Intellectual Property
+		 All rights reserved.
+
+		 Copyright (c) 2014-2017 by Brocade Communications Systems, Inc.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or
+		 without modification, are permitted provided that the following
+		 conditions are met:
+
+		 1. Redistributions of source code must retain the above copyright
+			notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+			copyright notice, this list of conditions and the following
+			disclaimer in the documentation and/or other materials provided
+			with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+			contributors may be used to endorse or promote products derived
+			from this software without specific prior written permission.
+
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+
+		 The YANG module for vyatta-interfaces-policy-v1";
+
+	revision 2017-11-06 {
+		description "Add policy support for vfp interfaces to 
+			     allow addition of PBR.";
+	}
+
+	revision 2017-01-23 {
+		description "Augment 'policy' node to openvpn, tunnel
+			     and vti interfaces so 'policy route pbr'
+			     can be added.";
+	}
+	revision 2015-10-05 {
+		description "Initial revision of version 1.";
+	}
+
+	augment /if:interfaces/interfaces-dataplane:dataplane {
+		uses policy:policy-binding;
+	}
+
+	augment /if:interfaces/interfaces-dataplane:dataplane/interfaces-dataplane:vif {
+		uses policy:policy-binding;
+	}
+
+	augment /if:interfaces/interfaces-l2tpeth:l2tpeth {
+		uses policy:policy-binding;
+	}
+
+	augment /if:interfaces/interfaces-l2tpeth:l2tpeth/interfaces-l2tpeth:vif {
+		uses policy:policy-binding;
+	}
+
+	augment /if:interfaces/interfaces-bonding:bonding {
+		uses policy:policy-binding;
+	}
+
+	augment /if:interfaces/interfaces-bonding:bonding/interfaces-bonding:vif {
+		uses policy:policy-binding;
+	}
+
+	augment /if:interfaces/interfaces-openvpn:openvpn {
+		uses policy:policy-binding;
+	}
+
+	augment /if:interfaces/interfaces-tunnel:tunnel {
+		uses policy:policy-binding;
+	}
+
+	augment /if:interfaces/interfaces-vti:vti {
+		uses policy:policy-binding;
+	}
+
+	augment /if:interfaces/interfaces-vfp:virtual-feature-point {
+		uses policy:policy-binding;
+	}
+}

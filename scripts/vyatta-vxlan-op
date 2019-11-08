@@ -1,0 +1,169 @@
+#!/usr/bin/perl
+
+# Copyright (c) 2017-2019, AT&T Intellectual Property.
+# All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+
+use strict;
+use warnings;
+use lib "/opt/vyatta/share/perl5";
+
+use Getopt::Long;
+use Readonly;
+use File::Basename;
+
+use Vyatta::Configd;
+use Vyatta::Interface;
+use Vyatta::Dataplane;
+use JSON qw( decode_json );
+
+Readonly my $SCRIPT_NAME => basename($0);
+
+my $client = Vyatta::Configd::Client->new();
+
+my %actions = (
+   "show" => \&vxlan_show,
+   "clear" => \&vxlan_clear,
+);
+
+my ( $dp_ids, $dp_conns );
+
+sub vxlan_show_stats {
+    my %vxlan_ctr2str = (
+	'ARPFailed'                 => 'Output drops - ARP Failed',
+	'InDiscardsBadHeader'       => 'Input drops - Bad Header',
+	'InDiscardsBadPayload'      => 'Input drops - Bad Payload',
+	'InDiscardsOptions'         => 'Input drops - Options',
+	'InDiscardsPktHeadroom'     => 'Input drops - No headroom',
+	'InDiscardsShortPayload'    => 'Input drops - Payload too small',
+	'InDiscardsVniNotFound'     => 'Input drops - VNI not found',
+	'InPkts'                    => 'Input packets',
+	'NDFailed'                  => 'Output drops - ND failed',
+	'OutDiscards'               => 'Output drops',
+	'OutDiscardsEncapFailed'    => 'Output drops - Encap failed',
+	'OutDiscardsNoVTEPSrc'      => 'Output drops - No VTEP Source',
+	'OutDiscardsUnknownPayload' => 'Output drops - Unknown payload',
+	'OutPkts'                   => 'Output packets',
+	);
+
+    my $response = vplane_exec_cmd( "vxlan stats show",
+				    $dp_ids, $dp_conns, 1 );
+
+    foreach my $dp_id ( @{$dp_ids} ) {
+	next unless defined ( $response->[$dp_id] );
+	my $decoded = decode_json( $response->[$dp_id] );
+	my %stats = %{$decoded->{vxlan_stats}};
+	foreach my $ctr ( sort keys(%stats) ) {
+	    printf("%-32s : %s\n", $vxlan_ctr2str{$ctr}, $stats{$ctr});
+	}
+    }
+}
+
+sub vxlan_show_macs {
+    my ( $interface, $mac ) = @_;
+    my $ifm_str = "";
+    my %vxlan_type2char = (
+	'static' => 'S',
+	'dynamic' => 'D',
+	'local' => 'L',
+    );
+
+    if ( defined($interface) ) {
+	$ifm_str = "interface $interface";
+	if ( defined($mac) ) {
+	    $ifm_str = $ifm_str." mac $mac";
+	}
+    }
+
+    printf("Interface      Mac Address       Type  VNI       IP Address\n");
+    my $response = vplane_exec_cmd( "vxlan macs show $ifm_str",
+				    $dp_ids, $dp_conns, 1 );
+
+    for my $dp_id ( @{$dp_ids} ) {
+        next unless defined( $response->[$dp_id] );
+
+        my $decoded = decode_json( $response->[$dp_id] );
+	foreach my $intf_entry (@{$decoded->{mac_table}}) {
+	    foreach my $entry (@{$intf_entry->{entries}}) {
+		printf("%-14s %-17s %2s   %-10s %-47s\n",
+		       $intf_entry->{intf}, $entry->{mac},
+		       $vxlan_type2char{$entry->{type}},
+		       $entry->{VNI}, $entry->{IPAddr}); 
+	    }
+	}
+    }
+}
+
+sub vxlan_show {
+    my ($object, $interface, $mac) = @_;
+
+    if ( $object eq "mac" ) {
+       vxlan_show_macs($interface, $mac);
+    } elsif ( $object eq "statistics" ) {
+       vxlan_show_stats();
+    }
+}
+
+sub vxlan_clear_stats {
+    my $response = vplane_exec_cmd( "vxlan stats clear",
+				    $dp_ids, $dp_conns, 1 );
+}
+
+sub vxlan_clear_macs {
+    my ($interface, $mac) = @_;
+    my $ifm_str = "";
+
+    if ( defined($interface) ) {
+	$ifm_str = "$interface";
+	if ( defined($mac) ) {
+	    $ifm_str = "$ifm_str $mac";
+	}
+    }
+
+    my $response = vplane_exec_cmd( "vxlan macs clear $ifm_str",
+				    $dp_ids, $dp_conns, 1 );
+}
+
+sub vxlan_clear {
+    my ($object, $interface, $mac) = @_;
+
+    if ( $object eq "mac" ) {
+       vxlan_clear_macs($interface, $mac);
+    } elsif ( $object eq "statistics" ) {
+       vxlan_clear_stats();
+    }
+}
+
+
+sub call_action_by_name {
+    my ( $actions, $script_name, $action, $object, $interface, $mac ) = @_;
+
+    my $usagefn = sub {
+        printf( "Usage for %s:\n", $script_name );
+        printf( "    %s --%s=[%s]\n",
+            $script_name, "action", join( "|", keys( %{$actions} ) ) );
+        exit(1);
+    };
+
+    $usagefn->() unless ( defined($action) && defined($object) );
+
+    my $actfunc = $actions->{$action};
+    $usagefn->() unless ( defined($actfunc) );
+
+    return $actfunc->($object, $interface, $mac);
+}
+
+my ($action, $object, $interface, $mac);
+
+GetOptions( "action=s" => \$action,
+	    "object=s" => \$object,
+	    "interface=s" => \$interface,
+	    "mac=s" => \$mac );
+
+( $dp_ids, $dp_conns ) = Vyatta::Dataplane::setup_fabric_conns();
+
+call_action_by_name( \%actions, $SCRIPT_NAME, $action, $object, $interface, $mac );
+
+Vyatta::Dataplane::close_fabric_conns( $dp_ids, $dp_conns );
+

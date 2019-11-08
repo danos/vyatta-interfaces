@@ -1,0 +1,113 @@
+module vyatta-op-show-switch-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-op-show-switch:1";
+	prefix vyatta-op-show-switch-v1;
+
+	import vyatta-opd-extensions-v1 {
+		prefix opd;
+	}
+	import vyatta-op-show-v1 {
+		prefix show;
+	}
+	import vyatta-types-v1 {
+		prefix types;
+	}
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+		 Postal: 208 S. Akard Street
+		         Dallas, TX 75202
+		         USA
+		 Web: www.att.com";
+
+	description
+		"Copyright (c) 2017-2018, AT&T Intellectual Property.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or
+		 without modification, are permitted provided that the following
+		 conditions are met:
+
+		 1. Redistributions of source code must retain the above copyright
+			notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+			copyright notice, this list of conditions and the following
+			disclaimer in the documentation and/or other materials provided
+			with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+			contributors may be used to endorse or promote products derived
+			from this software without specific prior written permission.
+
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+
+		Defines the top 'switch' level under 'show' for operational CLI";
+
+	revision 2018-10-26 {
+		description "Add vlan under show switch";
+	}
+
+	revision 2017-11-27 {
+		description "Initial version";
+	}
+
+	opd:augment /show:show {
+		opd:command switch {
+			opd:help "Show switching information";
+			opd:on-enter 'vyatta-switch-op --action=show-switch';
+
+			opd:argument switch-name {
+				opd:help "Show switch information a given switch";
+				opd:on-enter 'vyatta-switch-op --action=show-switch --switch="$3"';
+				opd:allowed 'vyatta-interfaces.pl --show switch --filter-out "\."';
+				type string {
+					pattern 'sw[0-9]+';
+					opd:pattern-help "<swN>";
+				}
+
+				opd:command vlans {
+					opd:help "Show switch vlans";
+					opd:on-enter 'vyatta-switch-op --action=show-vlans --switch="$3"';
+				}
+
+				opd:command macs {
+					opd:help "Show switch forwarding database";
+					opd:on-enter 'vyatta-switch-op --action=show-macs --switch="$3"';
+
+					opd:option mac-address {
+						opd:help "Show specified MAC address from switch forwarding database";
+						opd:on-enter 'vyatta-switch-op --action=show-macs --switch="$3" --mac="$6"';
+						type types:mac-address;
+					}
+
+					opd:option port {
+						opd:help "Show switch forwarding database for a given port";
+						opd:on-enter 'vyatta-switch-op --action=show-macs --switch="$3" --port="$6"';
+						opd:allowed 'vyatta-interfaces.pl --show all';
+						type types:interface-ifname;
+					}
+
+					opd:option vlan {
+						opd:help "Show switch forwarding database for a given VLAN-ID";
+						opd:on-enter 'vyatta-switch-op --action=show-macs --switch="$3" --vlan="$6"';
+						type uint16 {
+							range "1..4094";
+						}
+					}
+				}
+			}
+		}
+	}
+}

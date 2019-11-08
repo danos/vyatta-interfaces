@@ -1,0 +1,124 @@
+module vyatta-interfaces-vfp-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-interfaces-vfp:1";
+	prefix vyatta-interfaces-vfp-v1;
+
+	import vyatta-interfaces-v1 {
+		prefix if;
+	}
+	import configd-v1 {
+		prefix configd;
+	}
+	import vyatta-interfaces-tcp-mss-v1 {
+		prefix if-tcp-mss;
+	}
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+		 Postal: 208 S. Akard Street
+		         Dallas, TX 75202
+		         USA
+		 Web: www.att.com";
+
+	description
+		"Copyright (c) 2017, AT&T Intellectual Property.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or
+		 without modification, are permitted provided that the following
+		 conditions are met:
+
+		 1. Redistributions of source code must retain the above copyright
+			notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+			copyright notice, this list of conditions and the following
+			disclaimer in the documentation and/or other materials provided
+			with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+			contributors may be used to endorse or promote products derived
+			from this software without specific prior written permission.
+
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+
+		 YANG module for virtual feature point configuration.
+		 Initial use of this interface is to be associated with
+		 IPSec site-to-site tunnels in order to run features
+		 such as firewall, NAT and PBR before entering the
+		 tunnel and after exiting the tunnel.";
+
+	revision 2017-11-20 {
+		description "Initial Revision";
+	}
+
+	typedef vfp-ifname {
+		type string {
+			length 1..15;
+			pattern 'vfp[0-9]+';
+			configd:pattern-help "<vfpN>";
+		}
+	}
+
+	augment /if:interfaces {
+		list virtual-feature-point {
+			configd:priority "381";
+			description "Virtual feature point";
+			configd:help "Virtual feature point interface";
+			configd:end "vyatta-intf-vfp --vfp $VAR(@)";
+			key "ifname";
+			leaf ifname {
+				type vfp-ifname;
+				description "Virtual feature point interface";
+				configd:help "Virtual feature point interface";
+			}
+			leaf description {
+				type string {
+					length "1..256";
+				}
+				description "Virtual feature point description";
+				configd:help "Virtual feature point description";
+			}
+			leaf disable {
+				type empty;
+				description "Disable interface";
+				configd:help "Disable interface";
+			}
+			leaf mtu {
+				type uint32 {
+					range 68..16384;
+				}
+				description "Maximum Transmission Unit (MTU)";
+				configd:help "Maximum Transmission Unit (MTU)";
+				default "16384";
+			}
+			leaf-list address {
+				type if:address;
+				ordered-by "user";
+				description "IP address";
+				configd:help "IP address";
+			}
+			container ip {
+				description "IPv4 interface parameters";
+				configd:help "IPv4 parameters";
+				uses if-tcp-mss:tcp-mss-limit;
+			}
+			container ipv6 {
+				description "IPv6 interface parameters";
+				configd:help "IPv6 parameters";
+				uses if-tcp-mss:tcp-mss-limit;
+			}
+		}
+	}
+}

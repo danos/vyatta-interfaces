@@ -1,0 +1,3 @@
+help: Show VXLAN information for specified interface
+allowed: ${vyatta_sbindir}/vyatta-interfaces.pl --show all
+run: ${vyatta_bindir}/vyatta-vxlan-op --action=show --object=mac --interface=$5

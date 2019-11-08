@@ -1,0 +1,12 @@
+# device name to CLI path matching
+lo	loopback
+br	bridge
+vbr	bridge
+vtun	openvpn
+tun\d+	tunnel
+vti	vti
+ppp	l2tp
+lttp	l2tpeth
+erspan	erspan
+sw		switch
+

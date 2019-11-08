@@ -1,0 +1,123 @@
+#! /bin/bash
+# Copyright (c) 2018, AT&T Intellectual Property. All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Wrapper around ip link command that handles IPv4, IPv6 and DHCP
+# This is done in shell rather than perl to avoid the overhead of recompilation
+
+# Ensure linklocal DAD starts before global
+function ll_wait {
+    if [ -n "$(ip link show $1 up)" ]
+    then
+	/opt/vyatta/sbin/restore-ipv6-address.pl --restore-ll-only "$1"
+    fi
+}
+
+function is_addr_multicast {
+    if [[ "$1" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)/([0-9]+)$ ]]; then
+	if (( (BASH_REMATCH[1] & 240) == 224 )); then
+	    echo "$1 reserved for multicast use"
+	    exit 1
+	fi
+    fi
+
+}
+
+if [ $# -ne 3 ]; then
+    echo "Usage: $0 {add|delete} interface address"
+    exit 1
+fi
+
+
+# Not a strict dependency on routing domain features
+# If we have a non-default RDID set for this
+# interface then we should also have the correct
+# ip rdid commands.
+# Directly use ip rdid exec commands
+# needs to change when kernel/iproute2 implementaion
+# changes.
+RDID=$(cat /sys/class/net/$2/rdid 2>/dev/null)
+if [[ -n "$RDID" && "$RDID" -ne 1 ]]; then
+    IP_RD_ARGS="rdid exec $RDID ip"
+else
+    IP_RD_ARGS=''
+fi
+
+case $1 in
+    add)
+	if [ ! -d "/sys/class/net/$2" ]
+	then
+	    echo "Warning: device $2 does not exist."
+	    exit 0
+	elif [[ "$3" = "dhcp" ]]
+	then
+	    # if interface just created then will be started by vyatta-intf-end
+	    if [ -n "$(ip link show $2 up)" ]
+	    then
+		exec /opt/vyatta/sbin/vyatta-dhcp-client --dev="$2" --action=start
+	    fi
+	elif [[ "$3" = "dhcpv6" ]]
+	then
+	    # if interface just created then will be started by vyatta-intf-end
+	    if [ -n "$(ip link show $2 up)" ]
+	    then
+		/opt/vyatta/sbin/restore-ipv6-address.pl --restore-ll-only "$2"
+		/opt/vyatta/sbin/vyatta-dhcpv6-client --start -ifname "$2" --cfgmode
+	    fi
+	elif [[ "$3" =~ ":" ]]
+	then # Ipv6 address
+	    # If IPv6 is disabled, the address is in the configuration
+	    # and can not be added to the system. By not running the
+	    # ip command and failing the configuration for the interface
+	    # is preserved.
+	    disable_ipv6=`cat /proc/sys/net/ipv6/conf/$2/disable_ipv6`
+	    clpsIp=`echo "$3" | sed -e 's/^\(.*\):0:[:0]*:0:\(.*\)$/\1::\2/'`
+	    ip ${IP_RD_ARGS} -6 addr list dev "$2" | grep -q "$clpsIp"
+	    inList=$?
+	    if [ "$disable_ipv6" = "0" -a "$inList" != "0" ]
+	    then
+		ll_wait "$2"
+		exec ip ${IP_RD_ARGS} -6 addr add "$3" dev "$2"
+	    fi
+	else
+	    if ! ip ${IP_RD_ARGS} addr list dev $2 | grep -q $3; then
+		is_addr_multicast "$3"
+		exec ip ${IP_RD_ARGS} addr add "$3" broadcast + dev "$2"
+	    fi
+	fi ;;
+
+    delete)
+	if [ ! -d "/sys/class/net/$2" ]
+	then # device is already gone
+	    exit 0
+	elif [[ "$3" = "dhcp" ]]
+	then
+	    exec /opt/vyatta/sbin/vyatta-dhcp-client --dev="$2" --action=stop
+	elif [[ "$3" = "dhcpv6" ]]
+	then
+	    exec /opt/vyatta/sbin/vyatta-dhcpv6-client --stop --ifname "$2"
+	elif [[ "$3" =~ ":" ]]
+        then
+	    # If IPv6 is disabled the address is in the configuration
+	    # and not in the system. By not running the ip command and
+	    # failing the address is deleted from the configuration.
+	    disable_ipv6=`cat /proc/sys/net/ipv6/conf/$2/disable_ipv6`
+	    clpsIp=`echo "$3" | sed -e 's/^\(.*\):0:[:0]*:0:\(.*\)$/\1::\2/'`
+	    ip $IP_RD_ARGS -6 addr list dev "$2" | grep -q "$clpsIp"
+	    inList=$?
+	    if [ "$disable_ipv6" = "0" -a "$inList" == "0" ]
+	    then
+		exec ip ${IP_RD_ARGS} -6 addr del "$3" dev "$2"
+	    fi
+	else
+	    ip ${IP_RD_ARGS} addr show dev "$2" |grep -q "$3"
+	    if [ $? == "0" ]
+	    then
+		exec ip ${IP_RD_ARGS} addr del "$3" dev "$2"
+	    fi
+	fi ;;
+    *)
+	echo "Unknown option $1"
+	exit 1 ;;
+esac

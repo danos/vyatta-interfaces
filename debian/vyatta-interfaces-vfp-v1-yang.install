@@ -1,0 +1,3 @@
+/usr/share/configd/yang/vyatta-interfaces-vfp-v1.yang
+sysconf/virtual-feature-point opt/vyatta/etc/netdevice.d
+scripts/vyatta-intf-vfp opt/vyatta/sbin

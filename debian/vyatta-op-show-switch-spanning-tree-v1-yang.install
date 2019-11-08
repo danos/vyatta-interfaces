@@ -1,0 +1,2 @@
+usr/share/configd/yang/vyatta-op-show-switch-spanning-tree-v1.yang
+opt/vyatta/bin/vyatta-switch-stp-op

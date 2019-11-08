@@ -1,0 +1,744 @@
+#!/usr/bin/perl
+
+# Copyright (c) 2017-2019, AT&T Intellectual Property.
+# All rights reserved.
+# Copyright (c) 2016-2017 Brocade Communications Systems, Inc.
+# All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+
+use strict;
+use warnings;
+use lib "/opt/vyatta/share/perl5";
+
+use Getopt::Long;
+use Readonly;
+use File::Basename;
+use File::Slurp qw( write_file );
+use JSON qw(decode_json);
+use Fcntl qw(:flock);
+
+use Vyatta::Configd;
+use Vyatta::Interface;
+use Vyatta::Misc;
+use Vyatta::SwitchConfig qw(create_hwcfg get_hwcfg get_default_switchports
+  get_physical_switches get_current_softswitch_name update_port_attr
+  interface_exists);
+use Vyatta::PlatformConfig qw(get_cfg);
+use Try::Tiny;
+
+Readonly my $SCRIPT_NAME => basename($0);
+
+my $client = Vyatta::Configd::Client->new();
+
+sub call_action_by_name {
+    my ( $actions, $script_name, $opt_name, $usage ) = @_;
+
+    my $usagefn = sub {
+        printf( "Usage for %s %s:\n", $script_name, $usage );
+        printf( "    %s %s --%s=[%s]\n",
+            $script_name, $usage, $opt_name, join( "|", keys( %{$actions} ) ) );
+        exit(1);
+    };
+
+    my ($name);
+    GetOptions( "$opt_name=s" => \$name, ) or $usagefn->();
+    $usagefn->() unless ( defined($name) );
+
+    my $action = $actions->{$name};
+    $usagefn->() unless ( defined($action) );
+
+    return $action->();
+}
+
+sub update_switch {
+    my ($name) = @_;
+    return if ( -d "/sys/class/net/$name" );
+    system("ip link add $name type bridge vlan_filtering 1 vlan_default_pvid 0");
+    add_interface_redirect( $name, 1 );
+    return;
+}
+
+sub update_vlans {
+    my $usage = sub {
+        printf( "Usage for %s --action=update-vlans\n",         $SCRIPT_NAME );
+        printf( "    %s --action=update-vlans --name=<name>\n", $SCRIPT_NAME );
+        exit(1);
+    };
+    my ($name);
+    GetOptions( "name=s" => \$name, )
+      or $usage->();
+    $usage->() unless defined $name;
+    process_switch_vlans($name);
+    return;
+}
+
+my $cached_vlan_state;
+
+sub get_interface_vlan_state {
+    my ($ifname) = @_;
+
+    return $cached_vlan_state if defined($cached_vlan_state);
+    my $json       = `bridge -j vlan show`;
+    my $vlan_state = decode_json($json);
+
+    if ( ref($vlan_state) eq 'ARRAY' ) {
+
+        # Newer versions of the bridge utility format the
+        # JSON output differently. Convert back into the
+        # old style with a hash of interfaces.
+
+        my %tmp_vlan_state;
+
+        for my $hash ( @{$vlan_state} ) {
+            $tmp_vlan_state{ $hash->{'ifname'} } = $hash->{'vlans'};
+        }
+        $cached_vlan_state = \%tmp_vlan_state;
+    } else {
+        $cached_vlan_state = $vlan_state;
+    }
+
+    return $cached_vlan_state;
+}
+
+sub get_interface_vlans {
+    my ($ifname) = @_;
+    open( my $stdout, "-|", "bridge vlan show dev $ifname | cut -d' ' -f 2" );
+    my @out = ();
+    while ( defined( my $line = <$stdout> ) ) {
+        chomp($line);
+        next unless $line =~ /^\d+$/;
+        push( @out, $line );
+    }
+    close($stdout);
+    return @out;
+}
+
+sub process_trunk_mode {
+    my ( $brname, $ifname, $params ) = @_;
+
+    my %vlans = map { $_ => 1 } @{ $params->{'vlan-parameters'}->{'vlans'} };
+    my %untagged_vlans =
+      map { $_ => 1 }
+      @{ $params->{'vlan-parameters'}->{'untagged-egress-vlans'} };
+    my $pvid  = $params->{'vlan-parameters'}->{'primary-vlan-id'};
+    my $state = get_interface_vlan_state($ifname);
+
+    for my $vlan ( @{ $state->{"$ifname"} } ) {
+        my $vlanid  = $vlan->{'vlan'};
+        my $delvlan = 0;
+        my $addvlan = 0;
+        my $utstr   = "";
+        my $pvidstr = "";
+
+        if ( not exists( $vlans{$vlanid} ) ) {
+            $delvlan = 1;
+        } else {
+            #
+            # To add a new VLAN attribute requires only a VLAN add
+            # command, but to remove an attribute requires that the
+            # VLAN be removed and re-added without the attribute.
+            #
+            if ( exists( $untagged_vlans{$vlanid} ) ) {
+                $utstr   = "untagged";
+                $addvlan = 1
+                  if not grep( /Egress Untagged/, @{ $vlan->{'flags'} } );
+            } else {
+                if ( grep( /Egress Untagged/, @{ $vlan->{'flags'} } ) ) {
+                    $delvlan = 1;
+                    $addvlan = 1;
+                }
+            }
+
+            if ( defined($pvid) and $vlanid == $pvid ) {
+                $pvidstr = "pvid";
+                $addvlan = 1
+                  if not grep( /PVID/, @{ $vlan->{'flags'} } );
+
+                undef $pvid;
+            } else {
+                if ( grep( /PVID/, @{ $vlan->{'flags'} } ) ) {
+                    $delvlan = 1;
+                    $addvlan = 1;
+                }
+            }
+
+            delete( $vlans{$vlanid} );
+            delete( $untagged_vlans{$vlanid} );
+        }
+
+        system("bridge vlan del vid $vlanid dev $ifname")
+          if $delvlan;
+        system("bridge vlan add vid $vlanid dev $ifname $utstr $pvidstr")
+          if $addvlan;
+    }
+
+    map    { system("bridge vlan add vid $_ dev $ifname"); }
+      grep { not exists( $untagged_vlans{$_} ) } keys(%vlans);
+
+    if ( defined($pvid) ) {
+        my $utstr = "";
+
+        if ( exists( $untagged_vlans{$pvid} ) ) {
+            $utstr = "untagged";
+            delete( $untagged_vlans{$pvid} );
+        }
+
+        system("bridge vlan add vid $pvid dev $ifname pvid $utstr");
+    }
+
+    map { system("bridge vlan add vid $_ dev $ifname untagged"); }
+      keys(%untagged_vlans);
+}
+
+sub process_access_mode {
+    my ( $brname, $ifname, $params ) = @_;
+
+    my $pvid  = $params->{'vlan-parameters'}->{'primary-vlan-id'};
+    my $state = get_interface_vlan_state($ifname);
+
+    for my $vlan ( @{ $state->{"$ifname"} } ) {
+        my $vlanid = $vlan->{'vlan'};
+
+        system("bridge vlan del vid $vlanid dev $ifname")
+          if not defined($pvid)
+          or $vlanid != $pvid;
+
+        if ( defined($pvid) and $vlanid == $pvid ) {
+            system("bridge vlan add vid $pvid dev $ifname pvid untagged")
+              if not grep( /PVID/,            @{ $vlan->{'flags'} } )
+              or not grep( /Egress Untagged/, @{ $vlan->{'flags'} } );
+            undef $pvid;
+        }
+    }
+
+    system("bridge vlan add vid $pvid dev $ifname pvid untagged")
+      if defined($pvid);
+}
+
+my $interfaces_cached;
+my %cached_interfaces;
+
+sub cache_interfaces() {
+    return if defined $interfaces_cached and $interfaces_cached;
+    $interfaces_cached = 1;
+
+    return
+      unless $client->node_exists( $Vyatta::Configd::Client::AUTO,
+        "interfaces" );
+
+    my $config = $client->tree_get_hash("interfaces");
+
+    for my $type ( keys( %{ $config->{'interfaces'} } ) ) {
+        my $tmpl    = $client->template_get("interfaces $type");
+        my $keyname = $tmpl->{'key'};
+
+        for my $interface ( @{ $config->{'interfaces'}->{$type} } ) {
+            my $ifname = $interface->{$keyname};
+
+            if ( $type eq "switch" ) {
+                if ( $interface->{'default-port-parameters'} ) {
+                    my $path =
+                      sprintf "interfaces switch %s default-port-parameters",
+                      $ifname;
+                    $cached_interfaces{$path} =
+                      $interface->{'default-port-parameters'};
+                }
+            }
+
+            if ( defined $interface->{'switch-group'}->{'switch'} ) {
+                my $switch = $interface->{'switch-group'}->{'switch'};
+                my $path   = sprintf "interfaces %s %s switch-group switch",
+                  $type, $ifname;
+
+                $cached_interfaces{$path} = $switch;
+            }
+
+            if ( defined $interface->{'switch-group'}->{'port-parameters'} ) {
+
+                my $path =
+                  sprintf "interfaces %s %s switch-group port-parameters",
+                  $type, $ifname;
+
+                $cached_interfaces{$path} =
+                  $interface->{'switch-group'}->{'port-parameters'};
+            }
+
+            if ( defined $interface->{'hardware-switching'} ) {
+                my $path =
+                  sprintf "interfaces %s %s hardware-switching disabled",
+                  $type, $ifname;
+
+                $cached_interfaces{$path} = $interface->{'hardware-switching'};
+            }
+        }
+    }
+}
+
+sub get_params {
+    my ( $brname, $ifname ) = @_;
+
+    cache_interfaces();
+
+    my $path = sprintf "interfaces switch %s default-port-parameters", $brname;
+    my $params     = $cached_interfaces{$path};
+    my $iface_path = Vyatta::Interface->new($ifname)->path();
+    $iface_path = $iface_path . " switch-group port-parameters";
+    my $port_params = $cached_interfaces{$iface_path};
+    return $port_params
+      if defined($port_params);
+    return $params
+      if defined($params);
+    return;
+}
+
+sub process_vlans {
+    my ( $brname, $ifname ) = @_;
+    my $params = get_params( $brname, $ifname );
+    return
+      if !defined($params);
+    process_trunk_mode( $brname, $ifname, $params )
+      if ( $params->{mode} eq "trunk" );
+    process_access_mode( $brname, $ifname, $params )
+      if ( $params->{mode} eq "access" );
+}
+
+sub process_switch_vlans {
+    my ($brname) = @_;
+
+    return
+      unless $client->node_exists( $Vyatta::Configd::Client::AUTO,
+        "interfaces switch $brname" );
+    my %vlans =
+      map {
+        $client->node_exists(
+            $Vyatta::Configd::Client::AUTO,
+            "interfaces switch $brname vif $_ vlan"
+          )
+          ? $client->get("interfaces switch $brname vif $_ vlan")
+          : $_ => 1
+      } $client->get("interfaces switch $brname vif");
+    my %orig_vlans = map { $_ => 1 } get_interface_vlans($brname);
+    map    { system("bridge vlan del vid $_ dev $brname self") }
+      grep { !exists( $vlans{$_} ); } keys(%orig_vlans);
+    map    { system("bridge vlan add vid $_ dev $brname self") }
+      grep { !exists( $orig_vlans{$_} ); } keys(%vlans);
+}
+
+sub enslave_interface {
+    my ( $brname, $ifname ) = @_;
+    my $port_path = "/sys/class/net/$brname/brif/$ifname";
+
+    if ( !-e $port_path ) {
+        system("brctl addif $brname $ifname");
+
+        # Turn off kernel l2 multicast flooding, dataplane implements flooding.
+        write_file( "$port_path/multicast_flood", 0 );
+        write_file( "$port_path/broadcast_flood", 0 );
+    }
+    process_vlans( $brname, $ifname );
+    system( "/opt/vyatta/sbin/vyatta-ipv6-disable", "create", "$ifname" );
+}
+
+sub enslave_interface_cmd {
+    my $usage = sub {
+        printf( "Usage for %s --action=enslave-interface:\n", $SCRIPT_NAME );
+        printf(
+"    %s --action=enslave-interface --br-name=<name> --if-name=<name>\n",
+            $SCRIPT_NAME );
+        exit(1);
+    };
+    my ( $brname, $ifname );
+    GetOptions(
+        "br-name=s" => \$brname,
+        "if-name=s" => \$ifname,
+    ) or $usage->();
+    $usage->() unless defined $brname && defined $ifname;
+
+    return if ( !interface_exists($ifname) );
+
+    if ( is_interface_enslaved($ifname) ) {
+        my $cur_switch = get_current_softswitch_name($ifname);
+        if ( $cur_switch eq $brname ) {
+            process_vlans( $brname, $ifname );
+            return;
+        }
+        delete_interface( $cur_switch, $ifname );
+    }
+
+    enslave_interface( $brname, $ifname );
+}
+
+sub switch_remove_restore_addr {
+    my $ifname = shift;
+    my $intf   = new Vyatta::Interface($ifname);
+    my @addrs  = Vyatta::Interface::get_interface_addrs($intf);
+    for my $a (@addrs) {
+        system( '/opt/vyatta/sbin/vyatta-address', 'delete', $ifname, $a );
+        system( '/opt/vyatta/sbin/vyatta-address', 'add',    $ifname, $a );
+    }
+}
+
+sub delete_interface {
+    my ( $brname, $ifname ) = @_;
+
+    system("brctl delif $brname $ifname");
+    switch_remove_restore_addr($ifname);
+
+    my $intf = Vyatta::Interface->new($ifname);
+    if ( !$intf ) {
+        die "Unknown interface type $ifname\n";
+    }
+    my $intf_type = $intf->type();
+    try {
+        if (
+            !$client->node_exists(
+                $Vyatta::Configd::Client::AUTO,
+                "interfaces $intf_type $ifname ipv6 disable"
+            )
+          )
+        {
+            system( "/opt/vyatta/sbin/vyatta-ipv6-disable",
+                "delete", "$ifname" );
+        }
+    }
+    catch {
+        # if the node_exists fails then enable v6 as diasble config is not valid
+        system( "/opt/vyatta/sbin/vyatta-ipv6-disable", "delete", "$ifname" );
+    };
+}
+
+sub delete_interface_cmd {
+    my $usage = sub {
+        printf( "Usage for %s --action=delete-interface:\n", $SCRIPT_NAME );
+        printf(
+"    %s --action=delete-interface --br-name=<name> --if-name=<name>\n",
+            $SCRIPT_NAME );
+        exit(1);
+    };
+    my ( $brname, $ifname );
+    GetOptions(
+        "br-name=s" => \$brname,
+        "if-name=s" => \$ifname,
+    ) or $usage->();
+    $usage->() unless defined $brname && defined $ifname;
+    delete_interface( $brname, $ifname );
+    return;
+}
+
+sub process_slave {
+    my ($action) = $ENV{'COMMIT_ACTION'};
+    if ( $action eq "DELETE" ) {
+        delete_interface_cmd();
+    } else {
+        enslave_interface_cmd();
+    }
+}
+
+sub gen_hwcfg {
+    create_hwcfg();
+}
+
+sub get_default_softswitch_name {
+    my $switch = shift;
+    return "sw$switch";
+}
+
+#
+# gen_default_switches
+#
+sub gen_default_switches {
+    my %swport_map = get_hwcfg();
+    my @switches   = sort values %swport_map;
+
+    foreach my $switch (@switches) {
+        my $sw_name = get_default_softswitch_name($switch);
+        update_switch($sw_name);
+    }
+}
+
+sub is_interface_enslaved {
+    my $name = shift;
+
+    return 1 if ( -d "/sys/class/net/$name/brport" );
+    return 0;
+}
+
+sub get_softswitch_name {
+    my ( $client, $switch_id ) = @_;
+    my $cfg_str  = "interfaces switch";
+    my @switches = $client->get("$cfg_str");
+    foreach my $switch (@switches) {
+        if (
+            $client->node_exists(
+                $Vyatta::Configd::Client::AUTO,
+                "$cfg_str $switch physical-switch $switch_id"
+            )
+          )
+        {
+            return $switch;
+        }
+    }
+    return get_default_softswitch_name($switch_id);
+}
+
+my %defaulted_swports;
+
+#
+# put specified/all suitable interfaces into the default state
+#
+sub set_default_state {
+    my %swport_map = get_hwcfg();
+    my $cmd;
+
+    my $def_platf_type = get_cfg( 'platform-type', 1 );
+    die "Default platform type not found"
+      unless defined($def_platf_type) && $def_platf_type ne "";
+
+    my @def_swports = get_default_switchports($client);
+
+    # Create hash for later use in update_interfaces
+    %defaulted_swports = map { $_ => 1 } @def_swports;
+    my $platf_type = get_cfg('platform-type');
+    if ( !defined($platf_type) || $platf_type eq "" ) {
+        $platf_type = $def_platf_type;
+    }
+
+    if ( $platf_type eq 'switch' ) {
+        gen_default_switches();
+    }
+
+    foreach my $swport (@def_swports) {
+
+        next if ( !interface_exists($swport) );
+
+        if ( $platf_type eq 'router' ) {
+            if ( is_interface_enslaved($swport) ) {
+                system("logger Isolating interface $swport\n");
+                my $cur_sw_name = get_current_softswitch_name($swport);
+                delete_interface( $cur_sw_name, $swport );
+                update_port_attr( $swport, "hw-switching", "disable", 'SET' );
+            }
+        } elsif ( $platf_type eq 'switch' ) {
+            if ( !is_interface_enslaved($swport) ) {
+                my $switch = $swport_map{$swport};
+                my $sw_name = get_softswitch_name( $client, $switch );
+                #
+                # Ensure software switch actually exists
+                #
+                update_switch($sw_name);
+                system("logger Enslaving interface $swport to $sw_name\n");
+                enslave_interface( $sw_name, $swport );
+                update_port_attr( $swport, "hw-switching", "enable", 'SET' );
+                if (
+                    !$client->node_exists(
+                        $Vyatta::Configd::Client::AUTO,
+                        "interfaces dataplane $swport disable"
+                    )
+                  )
+                {
+                    `ip link set $swport up`;
+                }
+            }
+        }
+    }
+}
+
+sub update_hw_switching_attr {
+    my ( $ifname, $val, $switch_id ) = @_;
+    my $action = $ENV{COMMIT_ACTION};
+
+    # On interfaces connected to a hardware switch, the default
+    # is to have hardware-switching enabled
+    if ( $action eq 'DELETE' ) {
+        $val = "enable";
+    }
+
+    update_port_attr( $ifname, "hw-switching", $val, 'SET' );
+
+    # Do nothing more if an interface has explicit switch config
+    my $config = Vyatta::Config->new();
+    return
+      if $config->exists("interfaces dataplane $ifname switch-group switch");
+
+    # When hardware-switching is disabled, interfaces that have been
+    # automatically enslaved need to be isolated
+    # When hardware-switching is enabled, interfaces that have been
+    # isolated automatically need to be bound to the appropriate switch
+    if ( $val eq "disable" ) {
+        if ( is_interface_enslaved($ifname) ) {
+            my $br_name = get_current_softswitch_name($ifname);
+            delete_interface( $br_name, $ifname );
+        }
+    } else {
+        if ( !is_interface_enslaved($ifname) ) {
+            my $br_name = get_default_softswitch_name($switch_id);
+            enslave_interface( $br_name, $ifname );
+        }
+    }
+}
+
+sub update_port_attr_cmd {
+    my $usage = sub {
+        printf( "Usage for %s --action=update-port-attr:\n", $SCRIPT_NAME );
+        printf(
+"    %s --action=update-port-attr --name=<name> --attr=<attribute> --val=<value>\n",
+            $SCRIPT_NAME );
+        exit(1);
+    };
+    my ( $ifname, $attr, $val );
+    GetOptions(
+        "name=s" => \$ifname,
+        "attr=s" => \$attr,
+        "val=s"  => \$val
+    ) or $usage->();
+    $usage->() unless defined $ifname && defined $attr && defined $val;
+
+# Attributes processed here should only apply to interfaces connected to a hw switch
+    my %swport_map = get_hwcfg();
+    if ( !defined( $swport_map{$ifname} ) ) {
+        system("logger Attribute $attr ignored on interface $ifname");
+        return;
+    }
+
+    if ( $attr eq 'hw-switching' ) {
+        update_hw_switching_attr( $ifname, $val, $swport_map{$ifname} );
+        return;
+    }
+
+    update_port_attr( $ifname, $attr, $val );
+}
+
+#
+# Ideally, this would not be necessary since you can just
+# ask the configration if the switch-group node exists. But
+# this can result in bad queries and we can just avoid asking
+# the configuration since we know which are supported.
+#
+sub supported_interface {
+    my ($if) = @_;
+
+    return 0 if defined $if->vif();
+    return 1 if $if->type() eq "dataplane";
+    return 1 if $if->type() eq "bonding";
+    return 1 if $if->type() eq "vhost";
+
+    return 0;
+}
+
+sub update_interfaces {
+    cache_interfaces();
+    my %hwport_map = get_hwcfg();
+
+    for my $ifname ( getInterfaces() ) {
+
+        # Ignore internal control/tunnel interfaces that won't
+        # won't be part of switch.
+        my $interface = new Vyatta::Interface($ifname);
+        next if not defined $interface;
+
+        my $current_switch = get_current_softswitch_name( $interface->name() );
+
+        next if not supported_interface($interface);
+
+        my $configured_switch;
+        try {
+            my $path = sprintf "interfaces %s %s switch-group switch",
+              $interface->type(), $ifname;
+            if ( defined $cached_interfaces{$path} ) {
+                $configured_switch = $cached_interfaces{$path};
+            }
+        };
+
+        my $hw_switch_disabled;
+        try {
+            my $path = sprintf "interfaces %s %s hardware-switching disabled",
+              $interface->type(), $ifname;
+            if ( defined $cached_interfaces{$path} ) {
+                $hw_switch_disabled = 1;
+            }
+        };
+
+        # parent might not be switch; vifs or bonding slaves
+        next if defined $current_switch and not $current_switch =~ /^sw/;
+
+        # Ensure that the switch exists
+        update_switch($configured_switch) if defined $configured_switch;
+
+        #
+        # For a hardware interface implicitly assigned to the base
+        # switch, find the implicit switch name.  This may be different
+        # from the current switch when changing from a configured switch
+        # to the implicit switch.
+        #
+        if ( defined( $defaulted_swports{$ifname} ) ) {
+            my $switch = $hwport_map{$ifname};
+            my $sw_name = get_softswitch_name( $client, $switch );
+
+            $configured_switch = $sw_name;
+        }
+
+        if ( not defined $current_switch and not defined $configured_switch ) {
+
+            # nothing to do
+        } elsif ( not defined $current_switch and $configured_switch ) {
+
+            # add the interface to the switch
+            enslave_interface( $configured_switch, $ifname );
+            if ( defined $hwport_map{$ifname}
+                and not defined $hw_switch_disabled )
+            {
+                update_port_attr( $ifname, "hw-switching", "enable", 'SET' );
+            }
+
+        } elsif ( $current_switch and not defined $configured_switch ) {
+
+            # remove the interface from the switch
+            delete_interface( $current_switch, $ifname );
+        } elsif ( $configured_switch ne $current_switch ) {
+
+            # changed switches
+            delete_interface( $current_switch, $ifname );
+            enslave_interface( $configured_switch, $ifname );
+            if ( defined $hwport_map{$ifname}
+                and not defined $hw_switch_disabled )
+            {
+                update_port_attr( $ifname, "hw-switching", "enable", 'SET' );
+            }
+
+        } elsif ( $configured_switch eq $current_switch ) {
+
+            # ensure vlans on the ports are up to date
+            process_vlans( $configured_switch, $ifname );
+        }
+    }
+}
+
+sub lock {
+    open our $file, '<', $0 or die;
+    flock ($file, LOCK_EX);
+}
+
+sub unlock {
+    open our $file, '<', $0 or die;
+    flock ($file, LOCK_UN);
+}
+
+sub set_default_state_and_update {
+    lock();
+    set_default_state();
+    update_interfaces();
+    unlock();
+}
+
+my %actions = (
+    "update-port-attr"             => \&update_port_attr_cmd,
+    "process-slave"                => \&process_slave,
+    "enslave-interface"            => \&enslave_interface_cmd,
+    "remove-interface"             => \&delete_interface_cmd,
+    "gen-hwcfg"                    => \&gen_hwcfg,
+    "set-default-state"            => \&set_default_state,
+    "update-vlans"                 => \&update_vlans,
+    "set-default-state-and-update" => \&set_default_state_and_update,
+);
+call_action_by_name( \%actions, $SCRIPT_NAME, "action", "" );

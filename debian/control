@@ -1,0 +1,421 @@
+Source: vyatta-interfaces
+Section: contrib/net
+Priority: optional
+Maintainer: Vyatta Package Maintainers <DL-vyatta-help@att.com>
+Build-Depends:
+ cpio,
+ debhelper (>= 9),
+ debhelper (>= 9.20160403~) | dh-autoreconf,
+ debhelper (>= 9.20160709) | dh-systemd (>= 1.5),
+ dh-yang,
+ dh-python,
+ libconfig-tiny-perl,
+ libreadonly-perl,
+ libfile-slurp-perl,
+ libfile-temp-perl,
+ libio-interface-perl,
+ libnetaddr-ip-perl,
+ libtest-exception-perl,
+ libtest-mockobject-perl,
+ libtest-output-perl,
+ libtest-warn-perl,
+ python3,
+Standards-Version: 3.9.8
+
+Package: vyatta-interfaces-base
+Provides: vyatta-intf-create,
+ vyatta-update-vifs
+Architecture: any
+Depends: bmon,
+ ethtool,
+ iftop,
+ libfile-slurp-perl,
+ libfile-remove-perl,
+ libvyatta-dataplane-perl,
+ libvyatta-dscp-perl,
+ libvyatta-interface-perl,
+ libvyatta-misc-perl,
+ libvyatta-vifconfig-perl,
+ vplane-config,
+ vyatta-service-dhcp-client,
+ vyatta-cfg (>= 0.105.3),
+ vyatta-op (>= 1.0),
+ vyatta-system (>= 1.6.1),
+ ${misc:Depends},
+ ${perl:Depends},
+ ${shlibs:Depends}
+Description: Core interface command helper scripts
+ Core set of scripts to handle configuration of interfaces
+
+Package: vyatta-interfaces
+Provides: vyatta-tunnel-deferred.pl
+Architecture: all
+Depends: ebtables,
+ vyatta-interfaces-base,
+ vplane-config,
+ vyatta-cfg (>= 1.17),
+ vyatta-op (>= 1.0),
+ vyatta-system (>= 1.6.1),
+ iproute2 (>= 4.12.0-0vyatta4),
+ ${misc:Depends}
+Breaks: vyatta-cfg-system (<< 1.6.0), vyatta-op (<< 1.0)
+Replaces: vyatta-cfg-system (<< 1.6.0), vyatta-op (<< 1.0)
+Description: Interface command helper scripts
+ Scripts to handle configuration of some virtual interfaces
+
+Package: vyatta-interfaces-routing-instance
+Provides: vrf-bind-interface
+Architecture: all
+Depends:
+ chvrf,
+ libvyatta-config-perl,
+ libvyatta-interface-perl,
+ libvyatta-vrfinterface-perl,
+ libvyatta-vrfmanager-perl,
+ libvyatta-vrfmanager-sh (>= 0.4),
+ ${misc:Depends},
+ ${perl:Depends},
+Description: routing-instance related interface commands and
+ templates.
+
+Package: libvyatta-interface-perl
+Architecture: all
+Section: contrib/perl
+Provides: libvyatta-dscp-perl,
+ libvyatta-interfacestats-perl,
+ libvyatta-misc-perl,
+ libvyatta-rate-perl,
+ libvyatta-typechecker-perl,
+ libvyatta-vifconfig-perl
+Replaces: vyatta-interfaces (<< 0.7)
+Breaks: vyatta-interfaces (<< 0.7), libvyatta-vrfmanager-perl (<= 1.9)
+Depends:
+ libconfig-tiny-perl,
+ libfile-slurp-perl,
+ libio-interface-perl,
+ libreadonly-perl,
+ iproute2 (>= 4.19.0-0vyatta2),
+ ${misc:Depends},
+ ${perl:Depends},
+Description: Interface related perl modules
+ A collection of Interface related perl modules.
+
+Package: libvyatta-vrfinterface-perl
+Architecture: all
+Section: contrib/perl
+Depends:
+ libvyatta-interface-perl,
+ libvyatta-vrfmanager-perl,
+ ${misc:Depends},
+ ${perl:Depends},
+Description: Interface and VRF related perl module
+ Interface related perl modules dealing with VRF
+
+Package: vyatta-interfaces-vif-v1-yang
+Architecture: all
+Depends: vyatta-interfaces, ${misc:Depends}, ${yang:Depends}
+Description: Vyatta system-level configuration version 1
+ Vyatta system-level configuration utiliites, templates and scripts.
+
+Package: vyatta-interfaces-vif-v2-yang
+Architecture: all
+Depends: vyatta-interfaces, ${misc:Depends}, ${yang:Depends}
+Description: Vyatta system-level configuration version 2
+ Vyatta system-level configuration utiliites, templates and scripts.
+
+Package: vyatta-interfaces-erspan-v1-yang
+Architecture: all
+Depends: vyatta-interfaces, ${misc:Depends}, ${yang:Depends}
+Breaks: vyatta-cfg-system (<< 1.6.0)
+Replaces: vyatta-cfg-system (<< 1.6.0)
+Description: vyatta-interfaces-erspan-v1 module
+ ERSPAN interface configuration
+
+Package: vyatta-interfaces-loopback-v1-yang
+Architecture: all
+Depends: vyatta-interfaces, ${misc:Depends}, ${yang:Depends}
+Breaks: vyatta-cfg-system (<< 1.6.0)
+Replaces: vyatta-cfg-system (<< 1.6.0)
+Description: vyatta-interfaces-loopback-v1 module
+ Loopback interface configuration
+
+Package: vyatta-interfaces-tunnel-v1-yang
+Architecture: all
+Depends: vyatta-interfaces, ${misc:Depends}, ${yang:Depends}
+Breaks: vyatta-cfg-system (<< 1.6.0)
+Replaces: vyatta-cfg-system (<< 1.6.0)
+Description: vyatta-interfaces-tunnel-v1 module
+ Tunnel interface configuration
+
+Package: vyatta-interfaces-tunnel-deviations-siad-v1-yang
+Architecture: all
+Depends: vyatta-interfaces, ${misc:Depends}, ${yang:Depends}
+Description: vyatta-interfaces-tunnel-deviations-siad-v1 module
+ Tunnel interface configuration deviations on SIAD platform
+
+Package: vyatta-interfaces-vti-v1-yang
+Architecture: all
+Depends: vyatta-interfaces, ${misc:Depends}, ${yang:Depends}
+Breaks: vyatta-cfg-system (<< 1.6.0)
+Replaces: vyatta-cfg-system (<< 1.6.0)
+Description: vyatta-interfaces-vti-v1 module
+ VTI interface configuration
+
+Package: vyatta-interfaces-pppoe
+Architecture: all
+Depends: vyatta-interfaces,
+ vyatta-resources-chap-v1-yang,
+ ppp (>= 2.4.7-1+4vyatta0),
+ libtemplate-perl,
+ libjson-perl,
+ ${misc:Depends}, ${yang:Depends}
+Description: Vyatta PPPoE
+
+Package: vyatta-interfaces-pppoe-resources-chap-v1-yang
+Architecture: all
+Depends: vyatta-interfaces,
+ vyatta-interfaces-pppoe,
+ libtemplate-perl,
+ libjson-perl,
+ ${misc:Depends}, ${yang:Depends}
+Description: Vyatta PPPoE chap configuration templates/scripts
+
+Package: vyatta-op-show-interfaces-pppoe-v1-yang
+Architecture: all
+Depends: vyatta-interfaces,
+ vyatta-interfaces-pppoe,
+ libtemplate-perl,
+ libjson-perl,
+ libvyatta-dataplane-proto-support,
+ ${misc:Depends}, ${yang:Depends}
+Description: Vyatta PPPoE op-show operational commands for PPPoE
+
+Package: vyatta-interfaces-pppoe-v1-yang
+Architecture: all
+Depends: vyatta-interfaces,
+ vyatta-interfaces-pppoe,
+ libtemplate-perl,
+ libjson-perl,
+ ${misc:Depends}, ${yang:Depends}
+Description: Vyatta PPPoE interface definition
+
+Package: vyatta-interfaces-system-support
+Architecture: all
+Depends:
+ ${misc:Depends}
+Description: Support package for system interfaces
+ Common support files for administrative interfaces
+
+Package: vyatta-interfaces-system-groups-v1-yang
+Architecture: all
+Depends:
+ vyatta-interfaces-base,
+ vyatta-ipv6-rtradv-groups-v1-yang,
+ vyatta-interfaces-system-support,
+ ${misc:Depends}, ${yang:Depends}
+Description: vyatta-interfaces-system-groups-v1 module
+ Support groupings for administrative interface configuration
+
+Package: vyatta-interfaces-system-v1-yang
+Architecture: all
+Depends:
+ vyatta-interfaces-system-groups-v1-yang,
+ ${misc:Depends}, ${yang:Depends}
+Description: vyatta-interfaces-system-v1 module
+ System ethernet interface configuration
+
+Package: vyatta-interfaces-system-bridge-v1-yang
+Architecture: all
+Depends:
+ vyatta-interfaces-system-v1-yang,
+ vyatta-service-bridge,
+ ${misc:Depends}, ${yang:Depends}
+Description: vyatta-interfaces-system-bridge-v1 module
+ System ethernet bridging interface configuration
+
+Package: vyatta-interfaces-policy-uplink-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}
+Description: Uplink policy configuration module
+ The YANG module providing policy configuration for the uplink
+ interface type
+
+Package: vyatta-interfaces-policy-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}
+Description: vyatta-interfaces-policy-v1 module
+ The YANG module for vyatta-interfaces-policy-v1
+
+Package: vyatta-interfaces-switch-v1-yang
+Architecture: all
+Depends: libvyatta-bridge-perl,
+ liblist-moreutils-perl,
+ vyatta-update-vifs,
+ vyatta-platform-util,
+ vyatta-service-bridge (>= 2.4),
+ ${misc:Depends}, ${yang:Depends}
+Description: vyatta-interfaces-switch-v1 module
+ VLAN aware bridging interface configuration
+
+Package: vyatta-interfaces-dataplane-switch-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}
+Description: vyatta-interfaces-dataplane-switch-v1 module
+ VLAN aware bridging interface assignment configuration
+
+Package: vyatta-interfaces-tunnel-transport-routing-instance-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}
+Description: vyatta-interfaces-tunnel-transport-routing-instance-v1 module
+ The YANG module for configuring transport routing instance for VXLAN tunnels.
+
+Package: vyatta-resources-chap-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}
+Description: Utility for adding and removing chap entries to the
+ chap-secrets file. Models chap authentication under "resources chap-secrets".
+
+Package: vyatta-interfaces-vfp-v1-yang
+Architecture: all
+Depends:
+ ${misc:Depends},
+ ${yang:Depends}
+Description: Yang module vyatta-interfaces-vfp-v1
+ The YANG module for vyatta-interfaces-vfp-v1-yang.
+
+Package: vyatta-interfaces-vfp-unnumbered-v1-yang
+Architecture: all
+Depends:
+ ${misc:Depends},
+ ${yang:Depends}
+Description: Yang module vyatta-interfaces-vfp-unnumbered-v1
+ The YANG module for vyatta-interfaces-vfp-unnumbered-v1-yang.
+
+Package: vyatta-op-show-interfaces-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}
+Description: vyatta-op-show-interfaaces-v1 module
+ Operational mode integration for viewing interface configuration
+
+Package: vyatta-op-show-interfaces-erspan-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}, vyatta-interfaces-base
+Description: vyatta-op-show-interfaces-erspan-v1 module
+ Operational mode integration for viewing erspan interface configuration
+
+Package: vyatta-op-show-interfaces-loopback-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}, vyatta-interfaces-base
+Description: vyatta-op-show-interfaces-loopback-v1 module
+ Operational mode integration for viewing loopback interface configuration
+
+Package: vyatta-op-show-interfaces-system-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}, vyatta-interfaces-base
+Description: vyatta-op-show-interfaces-system-v1 module
+ Operational mode integration for viewing system interface configuration
+
+Package: vyatta-op-show-interfaces-routing-instance-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}, vyatta-interfaces-base
+Description: vyatta-op-show-interfaces-routing-instance-v1 module
+ Operational mode integration for viewing routing instance configuration
+
+Package: vyatta-op-show-interfaces-switch-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}, vyatta-interfaces-base,
+	 libvyatta-bridge-state-perl
+Description: vyatta-op-show-interfaaces-switch-v1 module
+ Operational mode integration for viewing switch interface configuration
+
+Package: vyatta-op-show-interfaces-tunnel-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}, vyatta-interfaces-base
+Description: vyatta-op-show-interfaces-tunnel-v1 module
+ Operational mode integration for viewing tunnel interface configuration
+
+Package: vyatta-op-show-interfaces-vti-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}, vyatta-interfaces-base
+Description: vyatta-op-show-interfaces-vti-v1 module
+ Operational mode integration for viewing virtual interface configuration
+
+Package: vyatta-op-show-switch-v1-yang
+Architecture: all
+Depends: libvyatta-bridge-perl, libvyatta-bridge-state-perl, ${misc:Depends}, ${yang:Depends}
+Description: vyatta-op-show-switch-v1 module
+ Operational mode integration for VLAN aware bridging interface configuration
+
+Package: vyatta-op-show-switch-spanning-tree-v1-yang
+Architecture: all
+Depends: libvyatta-bridge-perl,
+	 libvyatta-bridge-state-perl,
+	 libvyatta-bridge-show-status-perl,
+	 ${misc:Depends}, ${yang:Depends}
+Description: vyatta-op-show-switch-spanning-tree-v1 module
+ Operational mode integration for VLAN aware spanning-tree
+
+Package: vyatta-interfaces-switch-policy-v1-yang
+Architecture: all
+Depends:
+ ${misc:Depends},
+ ${yang:Depends}
+Description: Yang module vyatta-interfaces-switch-policy-v1
+ The YANG module for enabling policy configuration on switch interfaces
+
+Package: vyatta-interfaces-switch-vif-policy-v1-yang
+Architecture: all
+Depends:
+ ${misc:Depends},
+ ${yang:Depends}
+Description: Yang module vyatta-interfaces-switch-vif-policy-v1
+ The YANG module for enabling policy configuration on switch VLAN interfaces
+
+Package: vyatta-interfaces-switch-vif-sflow-v1-yang
+Architecture: all
+Section: contrib/admin
+Depends: vyatta-service-sflow-v1-yang, ${misc:Depends},
+        ${yang:Depends}
+Description: vyatta-interfaces-switch-vif-sflow-v1 module
+ The YANG module for enabling sflow config on switch VLAN interfaces
+
+Package: vyatta-interfaces-switch-vif-tcp-mss-v1-yang
+Architecture: all
+Section: contrib/admin
+Depends: ${misc:Depends}, ${yang:Depends}
+Description: vyatta-interfaces-switch-vif-tcp-mss-v1 module
+ The YANG module for enabling TCP MSS config on switch VLAN interfaces
+
+Package: vyatta-op-clear-interfaces-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}, vyatta-interfaces-base
+Description: vyatta-op-clear-interfaces-v1 module
+ Operational mode integration for clearing interface information
+
+Package: vyatta-op-clear-interfaces-switch-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}, vyatta-interfaces-base
+Description: vyatta-op-clear-interfaces-switch-v1 module
+ Operational mode integration for clearing switch interface information
+
+Package: python3-vyatta-platform-detect
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}, dmidecode
+Description: Vyatta platform detection python3 library
+ Library containing classes for detecting the platform and associated helpers
+
+Package: vyatta-platform-util
+Architecture: all
+Depends:
+ ${misc:Depends},
+ python3-vyatta-platform-detect,
+ python3,
+Description: Vyatta platform query and configure utility
+ Tool for querying platform properties and system setup
+
+Package: python3-vyatta-interfaces
+Architecture: all
+Provides: python3-vyatta-dscp,
+Depends: ${misc:Depends}, ${python3:Depends}
+Description: Vyatta python3 modules for interfaces.
+ Library of python3 modules for interfaces.

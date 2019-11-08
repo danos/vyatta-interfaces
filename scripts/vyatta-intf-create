@@ -1,0 +1,9 @@
+#!/bin/bash
+# vyatta config more script to take care of interface binding to
+# vrf at interface creation. This doesn't have a strict dependency
+# on vrf features.
+# check if we have the "routing routing-instance" node in schema
+# possibly there are better ways, but validateTmplPath works well
+# check if the node exists in schema.
+cli-shell-api validateTmplPath routing routing-instance || exit 0
+vrf-bind-interface --dev="${1}"

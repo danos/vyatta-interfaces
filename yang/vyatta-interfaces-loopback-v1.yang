@@ -1,0 +1,104 @@
+module vyatta-interfaces-loopback-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-interfaces-loopback:1";
+	prefix vyatta-interfaces-loopback-v1;
+
+	import vyatta-interfaces-v1 {
+		prefix if;
+	}
+
+	import configd-v1 {
+		prefix configd;
+	}
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+		 Postal: 208 S. Akard Street
+		         Dallas, TX 75202
+		         USA
+		 Web: www.att.com";
+
+	description
+		"Copyright (c) 2017, AT&T Intellectual Property.
+		 All rights reserved.
+		 Copyright (c) 2016 by Brocade Communications Systems, Inc.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or
+		 without modification, are permitted provided that the following
+		 conditions are met:
+
+		 1. Redistributions of source code must retain the above copyright
+			notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+			copyright notice, this list of conditions and the following
+			disclaimer in the documentation and/or other materials provided
+			with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+			contributors may be used to endorse or promote products derived
+			from this software without specific prior written permission.
+
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+
+		 Loopback interface configuration";
+
+	revision 2017-08-25 {
+		description "Make use of if:if-parameter-description grouping";
+	}
+
+	revision 2015-08-14 {
+		description "Initial revision of version 1.";
+	}
+
+	augment /if:interfaces {
+		list loopback {
+			configd:priority "300";
+			configd:help "Loopback interface name";
+			configd:allowed "/opt/vyatta/share/tmplscripts/interfaces/loopback/configd_allowed.sh";
+			configd:validate "interface-address-check $VAR(@) $VAR(./address/@@)";
+			configd:create "/opt/vyatta/share/tmplscripts/interfaces/loopback/configd_create.sh";
+			configd:delete "/opt/vyatta/share/tmplscripts/interfaces/loopback/configd_delete.sh";
+			configd:end "/opt/vyatta/sbin/vyatta-unnumbered-update-donor.pl --dev=$VAR(@)";
+			key "tagnode";
+			leaf tagnode {
+				type string {
+					pattern "lo(|[1-9]([0-9]){0,4})" {
+						error-message "name must be lo or loN, N in [1-99999]";
+					}
+					configd:pattern-help "<lo|lo[1-99999]>";
+					configd:syntax "/opt/vyatta/share/tmplscripts/interfaces/loopback/configd_syntax1.cli";
+				}
+				configd:help "Loopback interface name";
+				configd:allowed "/opt/vyatta/share/tmplscripts/interfaces/loopback/configd_allowed.sh";
+			}
+			uses if:if-parameter-description;
+			leaf-list address {
+				type if:address;
+				ordered-by "user";
+				configd:help "IP address";
+				configd:create "/opt/vyatta/share/tmplscripts/interfaces/loopback/address/configd_create.sh";
+				configd:validate "/opt/vyatta/share/tmplscripts/interfaces/loopback/address/configd_validate.cli";
+			}
+			container ip {
+				configd:help "IPv4 parameters";
+			}
+			container ipv6 {
+				presence "true";
+				configd:help "IPv6 parameters";
+			}
+		}
+	}
+}

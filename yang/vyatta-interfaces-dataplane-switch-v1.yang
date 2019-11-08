@@ -1,0 +1,155 @@
+module vyatta-interfaces-dataplane-switch-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-interfaces-dataplane-switch:1";
+	prefix vyatta-interfaces-dataplane-switch-v1;
+
+	import configd-v1 {
+		prefix configd;
+	}
+	import vyatta-interfaces-v1 {
+		prefix if;
+	}
+	import vyatta-interfaces-bonding-v1 {
+		prefix bonding;
+	}
+	import vyatta-interfaces-bridge-v1 {
+		prefix br;
+	}
+	import vyatta-interfaces-dataplane-v1 {
+		prefix dp;
+	}
+	import vyatta-interfaces-l2tpeth-v1 {
+		prefix l2t;
+	}
+	import vyatta-interfaces-switch-v1 {
+		prefix sw;
+	}
+	import vyatta-vrrp-v1 {
+		prefix vrrp;
+	}
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+		 Postal: 208 S. Akard Street
+			 Dallas, TX 75202
+			 USA
+		 Web: www.att.com";
+
+	description
+		"Copyright (c) 2017-2019, AT&T Intellectual Property.
+		 All rights reserved.
+
+		 Copyright (c) 2016-2017 by Brocade Communications Systems, Inc.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or
+		 without modification, are permitted provided that the following
+		 conditions are met:
+
+		 1. Redistributions of source code must retain the above copyright
+			notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+			copyright notice, this list of conditions and the following
+			disclaimer in the documentation and/or other materials provided
+			with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+			contributors may be used to endorse or promote products derived
+			from this software without specific prior written permission.
+
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+
+		 The YANG module for vyatta-interfaces-dataplane-switch-v1.
+		 This module provides VLAN-aware bridge support for dataplane interfaces.";
+
+	revision 2019-02-05 {
+		 description "Moved switch interface processing to the interfaces level";
+	}
+	revision 2018-12-12 {
+		 description "Remove hardware-switching enable";
+	}
+	revision 2018-09-04 {
+		 description
+			 "Tighten up must statement to stop it detecting the
+			  recently added default value for the VRRP start-delay.
+              Remove redundant call to 'vyatta-switchport --check-master'
+              on dataplane/switch-group/switch";
+	}
+	revision 2018-04-02 {
+		description "Update description. Adding missing delete clause";
+	}
+	revision 2018-03-20 {
+		description "Add hardware-switching config to dataplane interfaces";
+	}
+	revision 2017-11-18 {
+		description "Initial revision";
+	}
+
+	typedef hw-switching {
+		type enumeration {
+			enum disable {
+				 configd:help "Disable packet switching in the hardware forwarding engine";
+				 description "Disable packet switching in the hardware forwarding engine";
+			}
+		}
+	}
+
+	augment /if:interfaces/dp:dataplane {
+		container switch-group {
+			presence "Signals that this is a member of a switch";
+			description
+				"Used to add this interface to an existing switch and set the port
+				 specific parameters associated with being a member of the switch.";
+			configd:help "Add this interface to a switch";
+			must 'not(../dp:vif or ../br:bridge-group or ../dp:address or ' +
+				 '../bonding:bond-group or ../vrrp:vrrp/vrrp:vrrp-group or ../l2t:xconnect)' {
+				error-message "switch-group member may not be supplied with vif, " +
+					      "bridge, bonding or routing protocols";
+			}
+			leaf switch {
+				description "The switch of which this port is a member";
+				configd:help "The switch of which this port is a member";
+				mandatory true;
+				type leafref {
+					path /if:interfaces/sw:switch/sw:name;
+				}
+			}
+			container port-parameters {
+				presence "Specify per port parameters for this port";
+				description "Override the default switch parameters for this port";
+				configd:help "Override the default switch parameters for this port";
+				uses sw:port-parameters {
+					refine mode {
+						mandatory true;
+					}
+				}
+			}
+		}
+
+	    leaf hardware-switching {
+			type hw-switching;
+		    configd:help "Hardware switching mode for this interface";
+		    description "Hardware switching mode for this interface. Packets received on interfaces
+                         belonging to a hardware switch are processed by the hardware forwarding engine
+                         by default. Packets received on all other interfaces are processed in the
+                         software dataplane. If hardware switching is disabled on a specific interface,
+                         all packets received on that interface are processed in the software dataplane.
+                         This command is meaningful only on interfaces belonging to a hardware switch
+                         and a no-op on all other interfaces.";
+		    configd:update "vyatta-switch --action=update-port-attr -- --name=$VAR(../@) --attr=hw-switching --val=$VAR(@)";
+			configd:delete "vyatta-switch --action=update-port-attr -- --name=$VAR(../@) --attr=hw-switching --val=$VAR(@)";
+	   }
+	}
+}

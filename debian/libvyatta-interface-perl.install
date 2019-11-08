@@ -1,0 +1,12 @@
+opt/vyatta/share/perl5/Vyatta/Address.pm
+opt/vyatta/share/perl5/Vyatta/DistributedDataplane.pm
+opt/vyatta/share/perl5/Vyatta/DSCP.pm
+opt/vyatta/share/perl5/Vyatta/Interface.pm
+opt/vyatta/share/perl5/Vyatta/InterfaceStats.pm
+opt/vyatta/share/perl5/Vyatta/Misc.pm
+opt/vyatta/share/perl5/Vyatta/Platform.pm
+opt/vyatta/share/perl5/Vyatta/Rate.pm
+opt/vyatta/share/perl5/Vyatta/SwitchConfig.pm
+opt/vyatta/share/perl5/Vyatta/TypeChecker.pm
+opt/vyatta/share/perl5/Vyatta/VIFConfig.pm
+opt/vyatta/share/perl5/Vyatta/UnnumberedInterface.pm

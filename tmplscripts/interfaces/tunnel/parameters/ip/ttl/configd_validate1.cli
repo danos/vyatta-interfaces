@@ -1,0 +1,2 @@
+#!/opt/vyatta/bin/cliexpr
+commit:expression: $VAR(../../../encapsulation/@) in "gre" , "gre-multipoint" , "sit" , "ipip" , "vxlan" , "vxlan-gpe"  ; "tunnel encapsulation must be GRE, GRE-MULTIPOINT, SIT, IPIP, VXLAN or VXLAN-GPE"

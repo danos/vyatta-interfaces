@@ -1,0 +1,2 @@
+#!/opt/vyatta/bin/cliexpr
+commit:expression: $VAR(../../../encapsulation/@) in "gre" , "gre-multipoint" ; "Key only valid for GRE/GRE-MULTIPOINT for $VAR(../../../@)"

@@ -1,0 +1,217 @@
+#! /usr/bin/perl
+#
+# Copyright (c) 2017-2018, AT&T Intellectual Property. All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+use strict;
+use warnings;
+use Getopt::Long;
+use File::Slurp;
+use lib "/opt/vyatta/share/perl5/";
+use Vyatta::Config;
+
+my $VFP_DEFAULT_MTU = 16384;
+
+my $config = new Vyatta::Config("interfaces virtual-feature-point");
+
+sub warn_failure {
+    my $cmd = shift;
+    system($cmd) == 0 or warn "'$cmd' failed\n";
+}
+
+sub handle_add_del_mark_and_bypass {
+    my ( $interface, $action ) = @_;
+    my %act;
+    my %iptables;
+    my $mark;
+
+    if ( $action eq 'add' ) {
+        $act{'mark'}   = "--insert";
+        $act{'bypass'} = "--append";
+    } else {
+        $act{'mark'}   = "--delete";
+        $act{'bypass'} = "--delete";
+    }
+
+    chomp( $mark = read_file( '/sys/class/net/' . $interface . '/ifindex' ) );
+
+    $iptables{'mark'} = "$act{'mark'} OUTPUT --table mangle --jump MARK "
+      . "--set-mark $mark --out-interface $interface";
+
+    $iptables{'bypass'} = "$act{'bypass'} OUTPUT --table mangle "
+      . "--jump BYPASS --out-interface $interface --oif .spathintf";
+
+    foreach my $iptable_cmd ( "iptables", "ip6tables" ) {
+        foreach my $type ( "mark", "bypass" ) {
+            my $cmd = $iptable_cmd . " " . $iptables{"$type"};
+            my $out = `$cmd 2>&1`;
+            if ($?) {
+                print STDERR "bind iptables: $cmd failed: $out\n";
+            }
+        }
+    }
+}
+
+sub bring_up_down_interface {
+    my ( $interface, $status ) = @_;
+
+    if ( -d "/sys/class/net/$interface" ) {
+        warn_failure("ip link set $interface $status");
+    }
+}
+
+sub set_interface_desc {
+    my ( $interface, $desc ) = @_;
+    my $filename = "/sys/class/net/$interface/ifalias";
+
+    open( my $fh, ">", $filename )
+      || die "Couldn't open $filename for writing: $!\n";
+    print $fh "$desc\n";
+    close $fh;
+}
+
+sub add_interface {
+    my ($interface) = @_;
+
+    warn_failure("ip link add $interface type dummy");
+    die
+      "interfaces virtual-feature-point $interface: error creating interface\n"
+      unless ( -d "/sys/class/net/$interface" );
+    system "vyatta-intf-create $interface";
+    system "ip link set $interface up"
+      and die
+"interfaces virtual-feature-point $interface: error setting interface active\n";
+    set_mtu( $interface, $VFP_DEFAULT_MTU );
+    handle_add_del_mark_and_bypass( $interface, "add" );
+}
+
+sub del_interface {
+    my ($interface) = @_;
+
+    if ( -d "/sys/class/net/$interface" ) {
+        handle_add_del_mark_and_bypass( $interface, "del" );
+        warn_failure("ip link set $interface down");
+        warn_failure("ip link del $interface");
+    }
+}
+
+sub set_mtu {
+    my ( $interface, $value ) = @_;
+
+    if ( -d "/sys/class/net/$interface" ) {
+        warn_failure("ip link set $interface mtu $value");
+    }
+}
+
+sub add_address {
+    my ( $interface, $address ) = @_;
+
+    if ( -d "/sys/class/net/$interface" ) {
+        warn_failure("vyatta-address add $interface $address");
+    }
+}
+
+sub update_interface_description {
+    my ($interface) = @_;
+
+    my $desc = $config->returnValue("$interface description");
+
+    if (
+        defined($desc)
+        && ( !defined( $config->returnOrigValue("$interface description") )
+            || $desc ne $config->returnOrigValue("$interface description") )
+      )
+    {
+        set_interface_desc( $interface, $desc );
+    } elsif ( !defined($desc)
+        && $config->existsOrig("$interface description") )
+    {
+        set_interface_desc( $interface, "" );
+    }
+}
+
+sub update_interface_mtu {
+    my ($interface) = @_;
+
+    my $mtu_value = $config->returnValue("$interface mtu");
+
+    if (
+        defined($mtu_value)
+        && ( !defined( $config->returnOrigValue("$interface mtu") )
+            || $mtu_value ne $config->returnOrigValue("$interface mtu") )
+      )
+    {
+        set_mtu( $interface, $mtu_value );
+    } elsif ( !defined($mtu_value)
+        && $config->existsOrig("$interface mtu") )
+    {
+        # Note: the default value should come from YANG "default", but
+        # also handle it here in case that does not happen.
+        set_mtu( $interface, $VFP_DEFAULT_MTU );
+    }
+}
+
+sub update_interface_addresses {
+    my ($interface) = @_;
+
+    # Note that we only need to handle added addresses, as deleted addresses
+    # are handled by script vyatta-delete-addrs.pl run under container
+    # interfaces.
+
+    my @old_addrs = $config->returnOrigValues("$interface address");
+    my @new_addrs = $config->returnValues("$interface address");
+    my %addrs     = $config->compareValueLists( \@old_addrs, \@new_addrs );
+
+    for my $addr ( @{ $addrs{added} } ) {
+        add_address( $interface, $addr );
+    }
+}
+
+sub update_interface_disable {
+    my ($interface) = @_;
+
+    if ( $config->exists("$interface disable")
+        && !$config->existsOrig("$interface disable") )
+    {
+        bring_up_down_interface( $interface, "down" );
+    } elsif ( !$config->exists("$interface disable")
+        && $config->existsOrig("$interface disable") )
+    {
+        bring_up_down_interface( $interface, "up" );
+    }
+}
+
+sub update_interface_parameters {
+    my ($interface) = @_;
+
+    if ( !$config->exists("$interface") && $config->existsOrig("$interface") ) {
+        del_interface($interface);
+    } else {
+        if ( !-d "/sys/class/net/$interface" ) {
+            add_interface($interface);
+        }
+
+        update_interface_description($interface);
+        update_interface_mtu($interface);
+        update_interface_addresses($interface);
+        update_interface_disable($interface);
+    }
+
+    # The called script handles donatons of the address of the
+    # interface and IPv6 address restoration.
+    warn_failure("vyatta-intf-end $interface");
+}
+
+#
+# main
+#
+
+my ($interface);
+
+GetOptions( "vfp=s" => \$interface, );
+
+die "vyatta-intf-vfp: Undefined vfp\n" unless defined($interface);
+
+update_interface_parameters($interface) if $interface;

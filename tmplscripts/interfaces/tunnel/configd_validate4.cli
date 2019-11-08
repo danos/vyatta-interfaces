@@ -1,0 +1,2 @@
+#!/opt/vyatta/bin/cliexpr
+commit:expression: !pattern $VAR(./local-ip/@)".*:.*" && $VAR(./encapsulation/@) == "gre-multipoint" || $VAR(./encapsulation/@) != "gre-multipoint" ; "IPv6 local-ip ($VAR(./local-ip/@)) is forbidden for gre-multipoint encapsulation type."

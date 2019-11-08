@@ -1,0 +1,12 @@
+opt/vyatta/sbin/check-interface-exists.pl
+opt/vyatta/sbin/vyatta-interfaces-tunnel-erspan
+opt/vyatta/sbin/vyatta-intf-create
+opt/vyatta/sbin/vyatta-tunnel-deferred.pl
+opt/vyatta/sbin/vyatta-tunnel-encap-to-type
+opt/vyatta/sbin/vyatta-update-unnumbered.pl
+opt/vyatta/share/tmplscripts
+opt/vyatta/share/vyatta-op/templates/clear
+opt/vyatta/share/vyatta-op/templates/monitor
+opt/vyatta/share/vyatta-op/templates/show/vxlan
+scripts/netplug/spathintf etc/netplug/linkup.d
+platform/vyatta-interfaces-tunnel.platform /lib/vyatta-platform/platforms

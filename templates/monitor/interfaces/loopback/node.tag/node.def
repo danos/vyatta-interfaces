@@ -1,0 +1,3 @@
+help: Monitor specified loopback interface
+allowed: ${vyatta_sbindir}/vyatta-interfaces.pl --show loopback
+

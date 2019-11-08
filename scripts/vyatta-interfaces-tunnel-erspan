@@ -1,0 +1,161 @@
+#! /usr/bin/perl
+#
+# Copyright (c) 2017-2018, AT&T Intellectual Property. All rights reserved.
+# Copyright (c) 2015 Brocade Communications Systems, Inc.
+# All Rights Reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+
+use strict;
+use warnings;
+use Getopt::Long;
+use Vyatta::Config;
+use Vyatta::DSCP;
+use IO::File;
+use Vyatta::Misc qw(get_sysfs_value);
+
+my $config = new Vyatta::Config("interfaces erspan");
+
+sub warn_failure {
+    my $cmd = shift;
+    system($cmd) == 0 or warn "'$cmd' failed\n";
+}
+
+sub bring_up_down_erspan_tunnel {
+    my ( $interface, $status ) = @_;
+
+    if ( -d "/sys/class/net/$interface" ) {
+        warn_failure("ip link set $interface $status");
+    }
+}
+
+sub set_erspan_tunnel_desc {
+    my ( $interface, $desc ) = @_;
+    my $filename = "/sys/class/net/$interface/ifalias";
+
+    my $fh = IO::File->new("> $filename")
+      || die "Couldn't open $filename for writing: $!\n";
+    print $fh $desc;
+    $fh->close;
+}
+
+sub set_active_erspan_tunnel {
+    my ($interface) = @_;
+
+    die "interfaces erspan $interface: error creating erspan interface\n"
+      unless ( -d "/sys/class/net/$interface" );
+    system "ip link set $interface up"
+      and die
+      "interfaces erspan $interface: error setting erspan interface active\n";
+
+    if ( -e "/sys/class/net/.spathintf" ){
+        # If we have a gre sysctl then set it to catch locally generated traffic
+        if ( -e "/proc/sys/net/ipv4/gre/gre_output_if" ) {
+            system 'sysctl net.ipv4.gre.gre_output_if=".spathintf" > /dev/null';
+        }
+    }
+}
+
+sub add_erspan_tunnel {
+    my ( $interface, $local_ip, $remote_ip, $ttl, $tos, $mtu, $is_default_mtu ) = @_;
+    my $dscpval = Vyatta::DSCP::dscp_lookup($tos);
+
+    if ($dscpval) {
+        $tos = sprintf("%x", $dscpval << 2);
+    }
+
+    warn_failure(
+"ip link add $interface type gre local $local_ip remote $remote_ip seq ttl $ttl tos $tos"
+    );
+    if ( !$is_default_mtu ) {
+        warn_failure("ip link set $interface mtu $mtu");
+    }
+    set_active_erspan_tunnel($interface);
+}
+
+sub del_erspan_tunnel {
+    my ($interface) = @_;
+
+    warn_failure("ip link set $interface down");
+    warn_failure("ip link del $interface");
+}
+
+sub update_tunnel_erspan {
+    my ( $erspan_tunnel ) = @_;
+
+    if ( !$config->exists("$erspan_tunnel") && $config->existsOrig("$erspan_tunnel") ) {
+        del_erspan_tunnel($erspan_tunnel);
+    }
+    else {
+        my $local_ip  = $config->returnValue("$erspan_tunnel local-ip");
+        my $remote_ip = $config->returnValue("$erspan_tunnel remote-ip");
+        my $ttl       = $config->returnValue("$erspan_tunnel ip ttl");
+        my $tos       = $config->returnValue("$erspan_tunnel ip tos");
+        my $desc      = $config->returnValue("$erspan_tunnel description");
+        my $mtu       = $config->returnValue("$erspan_tunnel mtu");
+        my $is_default_mtu = $config->isDefault("$erspan_tunnel mtu");
+
+        if (! -d "/sys/class/net/$erspan_tunnel" ) {
+            add_erspan_tunnel( $erspan_tunnel, $local_ip, $remote_ip,
+                $ttl, $tos, $mtu, $is_default_mtu );
+
+            if ( defined($desc) ) {
+                set_erspan_tunnel_desc( $erspan_tunnel, $desc );
+            }
+            if ( $config->exists("$erspan_tunnel disable") ) {
+                bring_up_down_erspan_tunnel( $erspan_tunnel, "down" );
+            }
+        } else {
+            my $cmdargs;
+            if ( $local_ip ne $config->returnOrigValue("$erspan_tunnel local-ip") ) {
+                $cmdargs .= " local $local_ip";
+            }
+            if ( $remote_ip ne $config->returnOrigValue("$erspan_tunnel remote-ip") ) {
+                $cmdargs .= " remote $remote_ip";
+            }
+            if ( $ttl ne $config->returnOrigValue("$erspan_tunnel ip ttl") ) {
+                $cmdargs .= " ttl $ttl";
+            }
+            if ( $tos ne $config->returnOrigValue("$erspan_tunnel ip tos") ) {
+                my $dscpval = Vyatta::DSCP::dscp_lookup($tos);
+                if ($dscpval) {
+                    $tos = sprintf("%x", $dscpval << 2);
+                }
+                $cmdargs .= " tos $tos";
+            }
+
+            warn_failure("ip link set $erspan_tunnel type gre $cmdargs") if ($cmdargs);
+
+            my $live_mtu = get_sysfs_value( "$erspan_tunnel", "mtu" );
+            if ( !$is_default_mtu && ( $mtu ne $live_mtu ) ) {
+                warn_failure("ip link set $erspan_tunnel mtu $mtu");
+            }
+
+            if ( defined($desc) &&
+                 ( !defined($config->returnOrigValue("$erspan_tunnel description")) ||
+                   $desc ne $config->returnOrigValue("$erspan_tunnel description") ) ) {
+                set_erspan_tunnel_desc( $erspan_tunnel, $desc );
+            } elsif ( !defined($desc) && $config->existsOrig("$erspan_tunnel description") ) {
+                set_erspan_tunnel_desc( $erspan_tunnel, "" );
+            }
+
+            if ( $config->exists("$erspan_tunnel disable") && !$config->existsOrig("$erspan_tunnel disable") ) {
+                bring_up_down_erspan_tunnel( $erspan_tunnel, "down" );
+            } elsif ( !$config->exists("$erspan_tunnel disable") && $config->existsOrig("$erspan_tunnel disable") ) {
+                bring_up_down_erspan_tunnel( $erspan_tunnel, "up" );
+            }
+        }
+    }
+}
+
+#
+# main
+#
+
+my ($erspan_tunnel);
+
+GetOptions( "erspan_tunnel=s" => \$erspan_tunnel, );
+
+die "vyatta-interfaces-tunnel-erspan: Undefined action\n" unless defined($erspan_tunnel);
+
+update_tunnel_erspan( $erspan_tunnel ) if $erspan_tunnel;

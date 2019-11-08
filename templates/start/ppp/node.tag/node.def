@@ -1,0 +1,2 @@
+help: PPPoE interface name
+run: /opt/vyatta/sbin/vyatta-pppoe --call $3

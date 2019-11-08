@@ -1,0 +1,11 @@
+#! /usr/bin/perl
+
+use Vyatta::PlatformConfig qw(set_cfg);
+
+if (system("/opt/vyatta/bin/vyatta-platform-util --query-is-switch") == 0) {
+	set_cfg('platform-type', 'switch', 1);
+} else {
+	set_cfg('platform-type', 'router', 1);
+}
+
+1;

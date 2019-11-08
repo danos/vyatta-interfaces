@@ -1,0 +1,403 @@
+module vyatta-interfaces-tunnel-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-interfaces-tunnel:1";
+	prefix vyatta-interfaces-tunnel-v1;
+
+	import vyatta-dscp-v1 {
+		prefix dscp;
+	}
+	import vyatta-interfaces-v1 {
+		prefix if;
+	}
+	import vyatta-types-v1 {
+		prefix types;
+	}
+	import configd-v1 {
+		prefix configd;
+	}
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+		 Postal: 208 S. Akard Street
+		 	 Dallas, TX 75202
+		 	 USA
+		 Web: www.att.com";
+
+	description
+		"Copyright (c) 2017, AT&T Intellectual Property.
+		 All rights reserved.
+
+		 Copyright (c) 2016-2017 by Brocade Communications Systems, Inc.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or
+		 without modification, are permitted provided that the following
+		 conditions are met:
+
+		 1. Redistributions of source code must retain the above copyright
+			notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+			copyright notice, this list of conditions and the following
+			disclaimer in the documentation and/or other materials provided
+			with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+			contributors may be used to endorse or promote products derived
+			from this software without specific prior written permission.
+
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+
+		 Tunnel interface configuration";
+
+	revision 2018-12-18 {
+		description "Remove delete action and instead handle the removal in end action";
+	}
+	revision 2017-12-18 {
+		description "Add 'oper-status' and 'admin-status' to operational state";
+	}
+	revision 2017-11-14 {
+		description "Permit encaplimit config for all tunnels other than VXLAN/VXLAN-GPE";
+	}
+	revision 2017-10-27 {
+		description "Remove restriction on not being able to
+			modify key parameter after tunnel created. Respect
+			changes to encapsulation type after tunnel creation";
+        }
+	revision 2017-09-07 {
+		description "Add support for VXLAN and VXLAN-GPE";
+	}
+	revision 2017-08-25 {
+		description "Make use of if:if-parameter-description grouping";
+	}
+	revision 2017-01-13 {
+		description "Change configd:update for ip key parameter and delete configd:create";
+	}
+	revision 2016-11-19 {
+		description "Add tunnel disable config:end tmplscript";
+	}
+	revision 2016-10-28 {
+		description "Add support - the local tunnel underlay interface
+			can now be a DHCP addressed interface";
+	}
+	revision 2016-10-21 {
+		description "Increase maximum allowed MTU on tunnel i/f.";
+	}
+
+	revision 2016-06-21 {
+		description "Add mutual exclusion between Path MTU Discovery
+			     and Ignore-DF.";
+	}
+
+	revision 2016-04-14 {
+		description "Add GRE ignore DF feature.";
+	}
+
+	revision 2015-08-14 {
+		description "Initial revision of version 1.";
+	}
+
+	augment /if:interfaces {
+		list tunnel {
+			configd:priority "380";
+			configd:help "Tunnel interface";
+			configd:defer-actions "/opt/vyatta/sbin/vyatta-tunnel-deferred.pl ${COMMIT_ACTION} $VAR(@)";
+			configd:create "/opt/vyatta/share/tmplscripts/interfaces/tunnel/configd_create.sh";
+			configd:end "/opt/vyatta/share/tmplscripts/interfaces/tunnel/configd_end.sh";
+			configd:validate "/opt/vyatta/share/tmplscripts/interfaces/tunnel/configd_validate1.cli";
+			configd:validate "/opt/vyatta/share/tmplscripts/interfaces/tunnel/configd_validate2.cli";
+			configd:validate "/opt/vyatta/share/tmplscripts/interfaces/tunnel/configd_validate4.cli";
+			configd:validate "/opt/vyatta/share/tmplscripts/interfaces/tunnel/configd_validate5.cli";
+			must "not(./parameters/ip/ignore-df) or ./path-mtu-discovery-disable" {
+				error-message "Ignore DF can't be enabled while PMTU Discovery is enabled";
+			}
+			must "count(local-ip | local-interface)=1" {
+				error-message "You must configure either local-ip or local-interface (but not both).";
+			}
+			must "encapsulation = 'gre-multipoint' or " 
+			     + "(encapsulation != 'gre-multipoint' and "
+			     +   "count(remote-ip | transport/multicast-group)=1)" {
+			        error-message "Either remote IP or transport multicast address must be configured";
+			}
+			must "(encapsulation != 'vxlan' and encapsulation != 'vxlan-gpe') or "
+			     + "((encapsulation = 'vxlan' or encapsulation = 'vxlan-gpe') and vxlan-id)" {
+			        error-message "VXLAN Network Identifier must be specified for VXLAN/VXLAN-GPE tunnels";
+			}
+			key "tagnode";
+			leaf tagnode {
+				type string {
+					length 4..15;
+					pattern "tun[0-9]+";
+					configd:pattern-help "<tunN>";
+				}
+				configd:help "Tunnel interface name";
+			}
+			container parameters {
+				presence "true";
+				configd:help "Tunnel parameters";
+				container ip {
+					presence "true";
+					configd:help "IPv4 specific tunnel parameters";
+					leaf ttl {
+						type uint32 {
+							range 0..255 {
+								error-message "Must be between 0-255";
+							}
+						}
+						configd:help "Time to live field";
+						configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ip/ttl/configd_update.sh";
+						configd:delete "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ip/ttl/configd_delete.sh";
+						configd:validate "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ip/ttl/configd_validate1.cli";
+					}
+					leaf key {
+						type uint32;
+						configd:help "Tunnel key";
+						configd:validate "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ip/key/configd_validate1.cli";
+					}
+					leaf tos {
+						type union {
+							type dscp:dscp-name;
+							type enumeration {
+								enum "inherit" {
+									configd:help "Inherit from original IP header";
+								}
+							}
+							type string {
+								pattern "[0-9a-fA-F]{1,2}";
+								configd:pattern-help "<0-FF>";
+							}
+						}
+						configd:help "Type of Service (TOS)";
+						default "inherit";
+						configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ip/tos/configd_update.sh";
+						configd:delete "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ip/tos/configd_delete.sh";
+						configd:validate "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ip/tos/configd_validate1.cli";
+					}
+					leaf ignore-df {
+						type empty;
+						description "Ignore DF bit when encapsulating.";
+						configd:help "Ignore payload's DF bit when encapsulating.";
+						configd:create "/opt/vyatta/share/tmplscripts/interfaces/tunnel/ignore-df/configd_create.sh";
+						configd:delete "/opt/vyatta/share/tmplscripts/interfaces/tunnel/ignore-df/configd_delete.sh";
+						must "../../../encapsulation = 'gre' or ../../../encapsulation = 'gre-multipoint'" {
+							error-message "Only applicable to GRE layer 3 encapsulation.";
+						}
+					}
+				}
+				container ipv6 {
+					presence "true";
+					configd:help "IPv6 specific tunnel parameters";
+					configd:delete "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ipv6/configd_delete.sh";
+					leaf tclass {
+						type string {
+							configd:syntax "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ipv6/tclass/configd_syntax1.cli";
+						}
+						configd:help "Traffic class (Tclass)";
+						default "0x00";
+						configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ipv6/tclass/configd_update.sh";
+					}
+					leaf hoplimit {
+						type uint32 {
+							range 0..255 {
+								error-message "Must be between 0-255";
+							}
+						}
+						configd:help "Hoplimit";
+						default "64";
+						configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ipv6/hoplimit/configd_update.sh";
+					}
+					leaf encaplimit {
+						type string {
+							configd:syntax "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ipv6/encaplimit/configd_syntax1.cli";
+						}
+						configd:help "Encaplimit field";
+						default "4";
+						configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ipv6/encaplimit/configd_update.sh";
+						must "../../../encapsulation != 'vxlan' and ../../../encapsulation != 'vxlan-gpe'" {
+						     error-message "Encap limit cannot be configured for VXLAN/VXLAN-GPE tunnels";
+						}
+					}
+					leaf flowlabel {
+						type string {
+							configd:syntax "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ipv6/flowlabel/configd_syntax1.cli";
+						}
+						configd:help "Flowlabel";
+						default "0x00000";
+						configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/parameters/ipv6/flowlabel/configd_update.sh";
+					}
+				}
+			}
+			leaf local-ip {
+				type union {
+					type types:ipv4-address;
+					type types:ipv6-address;
+				}
+				configd:help "Local IP address for this tunnel [either local-ip or local-interface is REQUIRED]";
+				configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/local-interface/configd_update.sh";
+			}
+			leaf local-interface {
+				type string;
+				description "Allows DHCP Interface as local tunnel underlay interface in NHRP Spoke configurations (required)";
+				must "(current() = /if:interfaces/*/*[(local-name(.) = 'tagnode') or (local-name(.) = 'ifname')] "
+					+ "or /if:interfaces/*/*[local-name(.) = 'vif'][./../* = substring-before(current(), '.')]"
+					+ "/*[(local-name(.) = 'tagnode') or (local-name(.) = 'ifname')][. = substring-after(current(), '.')])" {
+					error-message "Interface name must refer to an existing (DHCP addressable) interface";
+				}
+				must "(/if:interfaces/*/*[((local-name(.) = 'tagnode') or (local-name(.) = 'ifname')) and (. = current())]/../*[(local-name(.) = 'address') and (. = 'dhcp')] "
+				+ "or /if:interfaces/*/*[local-name(.) = 'vif'][./../* = substring-before(current(), '.')]"
+                                + "/*[(local-name(.) = 'tagnode') or (local-name(.) = 'ifname')][. = substring-after(current(), '.')]/../*[(local-name(.) = 'address') and (. = 'dhcp')]/../*[(local-name(.) = 'address') and (. = 'dhcp')])" {
+                                        error-message "Interface must have DHCP configured";
+                                }
+				configd:help "Underlay Interface that provides Local IP address for this NHRP Spoke tunnel (either local-ip or this is REQUIRED)";
+				configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/local-interface/configd_update.sh";
+			}
+			uses if:if-parameter-description;
+			leaf mtu {
+				type uint32 {
+					range 68..16384;
+				}
+				configd:priority "381";
+				configd:help "Maximum Transmission Unit (MTU)";
+				configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/mtu/configd_update.sh";
+				configd:delete "/opt/vyatta/share/tmplscripts/interfaces/tunnel/mtu/configd_delete.sh";
+			}
+			leaf multicast {
+				type enumeration {
+					enum "enable" {
+						configd:help "Enable Multicast";
+					}
+					enum "disable" {
+						configd:help "Disable Multicast (default)";
+					}
+				}
+				configd:help "Multicast operation over tunnel";
+				default "disable";
+				configd:allowed "/opt/vyatta/share/tmplscripts/interfaces/tunnel/multicast/configd_allowed.sh";
+				configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/multicast/configd_update.sh";
+			}
+			leaf path-mtu-discovery-disable {
+				type empty;
+				configd:help "Disable pmtu discovery support";
+				configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/pmtudisc/configd_update.sh";
+				configd:delete "/opt/vyatta/share/tmplscripts/interfaces/tunnel/pmtudisc/configd_delete.sh";
+				configd:validate "/opt/vyatta/share/tmplscripts/interfaces/tunnel/pmtudisc/configd_validate1.sh";
+			}
+			leaf disable {
+				type empty;
+				configd:help "Disable interface";
+				configd:create "/opt/vyatta/share/tmplscripts/interfaces/tunnel/disable/configd_create.sh";
+				configd:delete "/opt/vyatta/share/tmplscripts/interfaces/tunnel/disable/configd_delete.sh";
+				configd:end "/opt/vyatta/share/tmplscripts/interfaces/tunnel/disable/configd_end.sh";
+			}
+			leaf remote-ip {
+				type union {
+					type types:ipv4-address;
+					type types:ipv6-address;
+				}
+				must "not(../encapsulation = 'gre-multipoint') and not(../transport/multicast-group)" {
+				     error-message "Remote-ip shouldn't be set for mGRE mode or 
+				     		    when transport multicast group is specified";
+				}
+				configd:help "Remote IP address for this tunnel";
+				configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/remote-ip/configd_update.sh";
+			}
+			leaf-list address {
+				type if:address;
+				ordered-by "user";
+				configd:help "IP address";
+				configd:create "/opt/vyatta/share/tmplscripts/interfaces/tunnel/address/configd_create.sh";
+			}
+			leaf disable-link-detect {
+				type empty;
+				configd:help "Ignore link state changes";
+				configd:create "/opt/vyatta/share/tmplscripts/interfaces/tunnel/disable-link-detect/configd_create.sh";
+				configd:delete "/opt/vyatta/share/tmplscripts/interfaces/tunnel/disable-link-detect/configd_delete.sh";
+			}
+			leaf encapsulation {
+				type enumeration {
+					enum "gre" {
+						configd:help "Generic Routing Encapsulation";
+					}
+					enum "gre-bridge" {
+						configd:help "Generic Routing Encapsulation (for bridging)";
+					}
+					enum "gre-multipoint" {
+						configd:help "Multipoint Generic Routing Encapsulation";
+					}
+					enum "ipip" {
+						configd:help "IP in IP encapsulation";
+					}
+					enum "ipip6" {
+						configd:help "IP in IPv6 encapsulation";
+					}
+					enum "ip6ip6" {
+						configd:help "IPv6 in IPv6 encapsulation";
+					}
+					enum "sit" {
+						configd:help "Simple Internet Transition encapsulation";
+					}
+					enum "vxlan" {
+						configd:help "Virtual eXtensible Local Area Network encapsulation";
+					}
+					enum "vxlan-gpe" {
+						configd:help "VXLAN - Generic Protocol Encapsulation";
+					}
+				}
+				configd:help "Encapsulation type";
+			}
+			container ip {
+				configd:help "IPv4 parameters";
+			}
+			container ipv6 {
+				presence "true";
+				configd:help "IPv6 parameters";
+			}
+			leaf vxlan-id {
+				must "(../encapsulation = 'vxlan') or (../encapsulation = 'vxlan-gpe')" {
+			     	     error-message "vxlan-id can only be specified when the encapsulation type is vxlan or vxlan-gpe";
+    				}
+				must "count(/if:interfaces/tunnel/vxlan-id[. = current()]) = 1" {
+				     error-message "VXLAN Network Identifier must be unique";
+				}
+			     	type uint32 {
+					range 0..16777216;
+				}
+				configd:help "VXLAN Network Identifier";
+				description "VXLAN Network Identifier";
+			}
+			container transport {
+				  configd:help "Configuration parameters for the transport network";
+				  description "Configuration parameters for the transport network";
+				  leaf multicast-group {
+				       configd:help "IPv4/IPv6 multicast group to which BUM packets are directed";
+				       description "IPv4/IPv6 multicast group to which BUM packets are directed";
+				       must "(../../encapsulation = 'vxlan') or (../../encapsulation = 'vxlan-gpe')" {
+				       	    error-message "Transport multicast group can only be specified when 
+					    		   the encapsulation is vxlan or vxlan-gpe";
+				       }
+				       must "not(../../remote-ip)" {
+				       	    error-message "Transport multicast group can only be specified when 
+					    		   remote-ip is not specified";
+				       }
+				       type union {
+				       	    type types:ipv4-address;
+				            type types:ipv6-address;
+				       }
+				  }
+			}
+			uses if:if-status;
+			configd:get-state "/opt/vyatta/bin/yang-getop-interface tunnel";
+		}
+	}
+}

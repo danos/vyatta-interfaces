@@ -1,0 +1,122 @@
+#!/usr/bin/perl
+#
+# Copyright (c) 2018-2019, AT&T Intellectual Property.
+# All rights reserved.
+# Copyright (c) 2015 by Brocade Communications Systems, Inc.
+# All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+use strict;
+use warnings;
+
+use lib '/opt/vyatta/share/perl5/';
+use Vyatta::Interface;
+use Vyatta::Config;
+use Vyatta::VPlaned;
+use Vyatta::RestoreIPv6Addr;
+use Vyatta::UnnumberedInterface;
+
+sub bring_up_dhcp {
+    my $intf = shift;
+    my $cfg  = new Vyatta::Config( $intf->path() );
+    my $dhcp_found;
+
+    foreach my $addr ( $cfg->returnValues('address') ) {
+        if ( $addr =~ /^dhcp/ ) {
+            $dhcp_found = 1;
+
+            # IPv6 link-local address must be assigned before DHCPv6 attempted
+            Vyatta::RestoreIPv6Addr::restore_address(
+                { interfaces => [ $intf->name() ] } );
+
+            system( "vyatta-address add " . $intf->name() . " $addr" ) == 0
+              or die "Cannot bring up $addr client for " . $intf->name();
+        }
+    }
+    return $dhcp_found;
+}
+
+sub bring_up_required_interfaces {
+    while ( my $name = shift ) {
+
+        my $intf = new Vyatta::Interface($name);
+        $intf or die "Unknown interface name/type: $name\n";
+
+        next unless -d "/sys/class/net/$name";
+
+        next if $intf->up();
+        next if not $intf->configured();
+        next if $intf->disabled();
+        my @parent_intf = split( /\./, $name, 2 );
+        if ( @parent_intf == 2 ) {
+            my $parent_name = $parent_intf[0];
+            my $pintf       = new Vyatta::Interface($parent_name);
+            next if $pintf->disabled();
+        }
+
+        system("ip link set dev $name up") == 0
+          or die "Cannot change interface $name to up";
+
+        next if bring_up_dhcp($intf);
+
+        Vyatta::RestoreIPv6Addr::restore_address(
+            {
+                interfaces      => [$name],
+                no_wait_for_dad => 1
+            }
+        );
+    }
+}
+
+sub update_unnumbered_donors {
+    while ( my $name = shift ) {
+        next unless -d "/sys/class/net/$name";
+        unnumbered_update_donor($name);
+    }
+}
+
+sub set_link_speed {
+    my $ctrl = new Vyatta::VPlaned;
+
+    my %port_speeds = (
+        'auto' => 'auto',
+        '10m'  => 10,
+        '100m' => 100,
+        '1g'   => 1000,
+        '2.5g' => 2500,
+        '10g'  => 10000,
+        '25g'  => 25000,
+        '40g'  => 40000,
+        '100g' => 100000,
+    );
+
+    while ( my $name = shift ) {
+        my $intf      = new Vyatta::Interface($name);
+        my $cfg       = new Vyatta::Config( $intf->path() );
+        my $duplex = $cfg->returnValue('duplex') if $cfg->exists('duplex');
+        my $speed = $cfg->returnValue('speed') if $cfg->exists('speed');
+
+        next unless -d "/sys/class/net/$name";
+
+        # You can't set the duplex w/o also setting a speed.
+        if ( defined $speed ) {
+            my $mbits = $port_speeds{$speed};
+            if ( defined $mbits ) {
+                $ctrl->store(
+                    "speed set $name",
+                    "speed set $name $mbits $duplex",
+                    "$name",
+                    "SET"
+                );
+            } else {
+                warn "unsupported interface speed $speed\n";
+            }
+        }
+    }
+}
+
+set_link_speed(@ARGV);
+bring_up_required_interfaces(@ARGV);
+update_unnumbered_donors(@ARGV);

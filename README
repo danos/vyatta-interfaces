@@ -1,0 +1,6 @@
+# vyatta-interfaces
+This package has the Vyatta interface Yang modules, templates and scripts.
+
+## Code Style
+Format Perl code using `perltidy -ce`
+

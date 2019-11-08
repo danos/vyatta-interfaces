@@ -1,0 +1,3 @@
+opt/vyatta/etc/system opt/vyatta/etc/netdevice.d/
+opt/vyatta/sbin/vyatta-system-interface
+opt/vyatta/sbin/vyatta-system-intf-end

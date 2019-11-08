@@ -1,0 +1,45 @@
+#! /usr/bin/perl
+# Description: Helper scripts to start/stop pppoe session via the PPP.pm library.
+#
+# Copyright (c) 2018, AT&T Intellectual Property.
+#
+# All Rights Reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+
+use strict;
+use warnings;
+
+use lib "/opt/vyatta/share/perl5/";
+use Vyatta::PPP
+  qw(ppp_update_config ppp_remove_config ppp_call ppp_hangup ppp_dp_ses_delete ppp_dp_ses_set);
+
+use Getopt::Long;
+use JSON;
+
+my $input = join( '', <STDIN> );
+my $rpc = decode_json $input;
+my $unit = "pppoe" . %$rpc{'unit'};
+
+sub hangup {
+    my ($pppname) = @_;
+    die "No PPPoE interface specified\n" unless defined $pppname;
+    ppp_hangup($pppname);
+}
+
+sub call {
+    my ($pppname) = @_;
+    die "No PPPoE interface specified\n" unless defined $pppname;
+    ppp_call($pppname);
+}
+
+my ( $hangup, $call );
+
+# All require the pppoe interface name
+GetOptions(
+    "hangup"    => \$hangup,
+    "call"      => \$call,
+);
+
+hangup($unit)     if defined($hangup);
+call($unit)         if defined($call);

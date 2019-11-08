@@ -1,0 +1,36 @@
+#!/usr/bin/perl
+#
+# Copyright (c) 2018, AT&T Intellectual Property. All rights reserved.
+#
+# Copyright (c) 2007-2017, Brocade Communications Systems, Inc.
+# All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+use strict;
+use warnings;
+
+use lib "/opt/vyatta/share/perl5/";
+
+use Vyatta::VIFConfig;
+
+# This is a "modulino" (http://www.drdobbs.com/scripts-as-modules/184416165)
+exit __PACKAGE__->main()
+  unless caller();
+
+sub main {
+    usage() unless ( scalar @ARGV );
+    for my $dev (@ARGV) {
+	    Vyatta::VIFConfig::update_all_vifs($dev);
+    }
+    exit 0;
+}
+
+sub usage {
+    print <<EOF;
+Usage: $0 <interface>
+EOF
+    exit 1;
+}
+

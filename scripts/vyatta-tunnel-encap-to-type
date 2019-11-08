@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Copyright (c) 2017-2018, AT&T Intellectual Property. All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Convert an encapsulation type in the tunnel YANG to an iproute2 type
+# parameter.
+#
+
+if [ $# != 1 ]; then
+    echo "Usage: $0 <encap-type>" >&2
+    exit 1
+fi
+
+encap="$1"
+
+case "$encap" in
+    "gre" | "ipip" | "sit" | "vxlan")
+        type="$encap"
+        ;;
+    "gre-bridge")
+        type=gretap
+        ;;
+    "gre-multipoint")
+        type=gre
+        ;;
+    "ipip6" | "ip6ip6")
+        type=ip6tnl
+        ;;
+    "vxlan-gpe")
+        type=vxlan
+        ;;
+    *)
+        echo "Unknown encap type: $encap" >&2
+        exit 1
+esac
+
+echo "$type"

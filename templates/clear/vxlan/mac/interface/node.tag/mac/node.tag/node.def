@@ -1,0 +1,2 @@
+help: Clear VXLAN forwarding information for specified mac
+run: ${vyatta_bindir}/vyatta-vxlan-op --action=clear --object=mac --interface=$5 --mac=$7

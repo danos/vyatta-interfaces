@@ -1,0 +1,30 @@
+# If a feature is listed here and set to 1 then it means that we have support
+# for it in some platform.  If in here, but not specified in the platform.conf
+# file then it will be blocked at config validation time.
+# If feature is listed but set to 0, it indicates that on all platforms for
+# that type of interface it is not supported. For example, vlan-modify
+# policy is set to 0 for hardware-interfaces so not supported on any platform
+# for hardware interfaces. Similiary, storm-control is 0 for software interfaces
+# meaning its not supported in software on any platform
+#
+
+[hardware-features]
+security.vpn.ipsec=1
+security.storm-control=1
+
+[hardware-interface-features]
+hardware-switching=1
+ip.rpf-check.strict=1
+ip.rpf-check.loose=1
+firewall.in.switch_vif=1
+firewall.out.switch_vif=1
+firewall.local.switch_vif=1
+storm-control=1
+switch-group.port-parameters.policy.vlan-modify=0
+
+[software-interface-features]
+hardware-switching=1
+storm-control=0
+
+[all-interface-features]
+poe=1

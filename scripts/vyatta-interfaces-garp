@@ -1,0 +1,68 @@
+#!/usr/bin/perl
+#
+# Copyright (c) 2018, AT&T Intellectual Property. All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+use strict;
+use warnings;
+
+use lib "/opt/vyatta/share/perl5/";
+
+use Getopt::Long;
+use Vyatta::VPlaned;
+
+# This is a "modulino" (http://www.drdobbs.com/scripts-as-modules/184416165)
+exit __PACKAGE__->main()
+  unless caller();
+
+sub main {
+
+    my ( $dev, $action, $garp );
+
+    GetOptions(
+        "dev=s"    => \$dev,
+        "action=s" => \$action,
+        "garp=s"   => \$garp,
+
+    ) or usage();
+
+    process_garp_cmd( $action, $garp, $dev ) if ($garp);
+
+    exit 0;
+}
+
+sub usage {
+    print <<EOF;
+Usage: $0 --action=<action> --garp=<garp> --dev=<interface>
+EOF
+    exit 1;
+}
+
+sub setup_garp {
+    my ( $action, $garp, $ifname ) = @_;
+    my $value;
+    my $cstore = new Vyatta::VPlaned;
+    my ( $pkt, $dp_action ) = split( ',', $garp );
+
+    if ( $dp_action eq 'drop' ) {
+        $value = 0;
+    }
+    else {
+        $value = 1;
+    }
+
+    $cstore->store( "garp $ifname $pkt",
+        "arp gratuitous $action $ifname $pkt $dp_action", "$ifname" );
+}
+
+sub process_garp_cmd {
+    my ( $action, $garp, $dev ) = @_;
+    my $value;
+
+    if ( !defined($dev) ) {
+        $dev = "all";
+    }
+    setup_garp( $action, $garp, $dev );
+}

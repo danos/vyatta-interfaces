@@ -1,0 +1,107 @@
+#!/usr/bin/perl
+
+# Copyright (c) 2017-2019, AT&T Intellectual Property.
+# All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+
+use strict;
+use warnings;
+
+use lib '/opt/vyatta/share/perl5/';
+
+use Vyatta::SpanningTreeBridge;
+use Vyatta::SpanningTreePort;
+use Vyatta::Dataplane;
+use Vyatta::FDB qw(fdb_collect);
+
+use File::Slurp qw(read_dir);
+use JSON;
+
+sub get_port_vlans {
+    my ($ifname) = @_;
+    my @vlans = ();
+
+    # TBD: rewrite this to bridge's JSON output
+    open( my $pipe, "-|", "bridge vlan show dev $ifname" );
+    $_ = <$pipe>;
+    while (<$pipe>) {
+        my %vlan_entry;
+
+        my ($vlan) = /.* (\d+).*/;
+        if ( defined($vlan) ) {
+            $vlan_entry{'vlan-id'}         = $vlan;
+            $vlan_entry{'primary-vlan-id'} = JSON::true if /PVID/;
+            $vlan_entry{'egress-untagged'} = JSON::true if /Egress Untagged/;
+            push @vlans, \%vlan_entry;
+        }
+    }
+
+    return \@vlans;
+}
+
+sub get_vlan_stats {
+    my ($switch) = @_;
+    my @vlan_stats = ();
+    my ( $dp_ids, $dp_conns ) = Vyatta::Dataplane::setup_fabric_conns();
+
+    my $response =
+      vplane_exec_cmd( "switch $switch vlan show stats",
+        $dp_ids, $dp_conns, 1 );
+
+    for my $dp_id ( @{$dp_ids} ) {
+        next unless defined( $response->[$dp_id] );
+
+        my $decoded = decode_json( $response->[$dp_id] );
+        foreach my $value ( @{ $decoded->{'vlan_stats'} } ) {
+            my %stats;
+            $stats{'vlan-id'}                = $value->{'vlan'};
+            $stats{'rx-packets'}             = $value->{'rx_pkts'};
+            $stats{'rx-bytes'}               = $value->{'rx_bytes'};
+            $stats{'rx-unicast-packets'}     = $value->{'rx_ucast_pkts'};
+            $stats{'rx-non-unicast-packets'} = $value->{'rx_nucast_pkts'};
+            $stats{'rx-drops'}               = $value->{'rx_drops'};
+            $stats{'rx-errors'}              = $value->{'rx_errors'};
+            $stats{'tx-bytes'}               = $value->{'tx_bytes'};
+            $stats{'tx-packets'}             = $value->{'tx_pkts'};
+            $stats{'tx-unicast-packets'}     = $value->{'tx_ucast_pkts'};
+            $stats{'tx-non-unicast-packets'} = $value->{'tx_nucast_pkts'};
+            $stats{'tx-drops'}               = $value->{'tx_drops'};
+            $stats{'tx-errors'}              = $value->{'tx_errors'};
+
+            push( @vlan_stats, \%stats );
+        }
+    }
+
+    return \@vlan_stats;
+}
+
+my %root;
+my @switches = ();
+
+$root{'switches'} = \@switches;
+
+my (@switch_names) = grep { /^sw\d+$/ } read_dir('/sys/class/net');
+
+foreach my $switch (@switch_names) {
+    my $bridge = Vyatta::SpanningTreeBridge->new($switch);
+    my %switch_info = %{ $bridge->state() };
+    my @interfaces = ();
+    my $fdb        = fdb_collect($switch);
+
+    $switch_info{'interfaces'} = \@interfaces;
+    foreach my $name ( read_dir("/sys/class/net/$switch/brif") ) {
+        my $port = Vyatta::SpanningTreePort->new( $switch, $name );
+        my %port_info = %{ $port->state( $bridge, $fdb, 1 ) };
+        $port_info{'vlans'} = get_port_vlans($name);
+
+        push @interfaces, \%port_info;
+    }
+
+    $switch_info{'vlan-statistics'} = get_vlan_stats($switch);
+
+    push @switches, \%switch_info;
+}
+
+my $json = encode_json( \%root );
+print $json;

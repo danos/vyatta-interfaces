@@ -1,0 +1,2 @@
+help: Monitor a erspan interface
+run: bmon -U -b -r 10 -p erspan*

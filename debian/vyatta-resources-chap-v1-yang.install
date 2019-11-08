@@ -1,0 +1,2 @@
+scripts/vyatta-update-chap opt/vyatta/sbin
+/usr/share/configd/yang/vyatta-resources-chap-v1.yang

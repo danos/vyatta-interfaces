@@ -1,0 +1,2 @@
+#!/opt/vyatta/bin/cliexpr
+syntax:expression: $VAR(@) == "inherit" || pattern $VAR(@)"^0x([0]?[[:xdigit:]][[:xdigit:]]?)$" ; "Must be 'inherit' or a hexnumber <0-0xff>"

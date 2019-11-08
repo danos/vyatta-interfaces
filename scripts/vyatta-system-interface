@@ -1,0 +1,75 @@
+#!/usr/bin/perl
+#
+# Copyright (c) 2018, AT&T Intellectual Property. All rights reserved.
+#
+# Copyright (c) 2016-2017 by Brocade Communications Systems, Inc.
+# All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Trivial wrapper for creating and deleting system interfaces.
+#
+use strict;
+use warnings;
+
+use lib "/opt/vyatta/share/perl5";
+use Getopt::Long;
+use Vyatta::Config;
+
+sub sysif_forwarding {
+    my ( $ifname, $state ) = @_;
+
+    `sysctl -wq net/ipv4/conf/$ifname/forwarding=$state`
+        if ( -e "/proc/sys/net/ipv4/conf/$ifname" );
+
+    if ($state) {
+        `vyatta-ipv6-forwarding.sh delete $ifname`;
+    } else {
+        `vyatta-ipv6-forwarding.sh create $ifname`;
+    }
+}
+
+sub sysif_delete {
+    my ( $name, $vif ) = @_;
+
+    my $ifname = $name;
+    if ($vif) {
+        `vyatta-interfaces.pl --dev $name --delete-vif $vif`;
+        $ifname = "$name.$vif";
+    }
+    sysif_forwarding( $ifname, 1 );
+}
+
+sub sysif_create {
+    my ( $name, $vif ) = @_;
+
+    my $ifname = $name;
+    if ($vif) {
+        `vyatta-interfaces.pl --dev $name --create-vif $vif`;
+        $ifname = "$name.$vif";
+    }
+    sysif_forwarding( $ifname, 0 );
+}
+
+sub usage {
+    print <<EOF;
+Usage: $0 --action=<action> --device=<interface>
+EOF
+    exit 1;
+}
+
+my ( $action, $device, $vif );
+
+GetOptions(
+    "action=s" => \$action,
+    "device=s" => \$device,
+    "vif=s"    => \$vif,
+) or usage();
+
+if ( $action eq "create" ) {
+    sysif_create( $device, $vif );
+} elsif ( $action eq "delete" ) {
+    sysif_delete( $device, $vif );
+} else {
+    die "unknown action $action";
+}

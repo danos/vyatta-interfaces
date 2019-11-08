@@ -1,0 +1,4 @@
+help: Monitor filtered traffic for the specified virtual-feature-point interface
+allowed: echo -e '<display-filter>'
+run: ${vyatta_bindir}/vyatta-tshark.pl --intf $4 --unlimited --filter "${@:8}"
+privileged: false

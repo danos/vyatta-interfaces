@@ -1,0 +1,110 @@
+#!/usr/bin/perl
+
+# Copyright (c) 2017-2019, AT&T Intellectual Property.
+# All rights reserved.
+# Copyright (c) 2016-2017 Brocade Communications Systems, Inc.
+# All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+
+use strict;
+use warnings;
+use lib "/opt/vyatta/share/perl5";
+
+use Getopt::Long;
+
+use Vyatta::SwitchConfig qw(get_physical_switches);
+use Vyatta::Interface qw(add_interface_redirect);
+
+sub call_action_by_name {
+    my ( $actions, $opt_name, $usage ) = @_;
+
+    my $usagefn = sub {
+        printf( "Usage for vyatta-switch-master %s:\n", $usage );
+        printf( "    vyatta-switch-master %s --%s=[%s]\n",
+            $usage, $opt_name, join( "|", keys( %{$actions} ) ) );
+        exit(1);
+    };
+
+    my ($name);
+    GetOptions( "$opt_name=s" => \$name, ) or $usagefn->();
+    $usagefn->() unless ( defined($name) );
+
+    my $action = $actions->{$name};
+    $usagefn->() unless ( defined($action) );
+
+    return $action->();
+}
+
+sub update_switch {
+    my ( $name, $enable_default ) = @_;
+    return if ( -d "/sys/class/net/$name" );
+    my $default_pvid = "";
+    if ( !defined($enable_default) || !$enable_default ) {
+        $default_pvid = "vlan_default_pvid 0";
+    }
+    system("ip link add $name type bridge vlan_filtering 1 $default_pvid");
+    add_interface_redirect($name, 1);
+    return;
+}
+
+
+sub update_master {
+    my $usage = sub {
+        printf( "Usage for vyatta-switch-master --action=update:\n" );
+        printf( "    vyatta-switch-master --action=update --name=<name>\n");
+        exit(1);
+    };
+    my ($name);
+    GetOptions( "name=s" => \$name, )
+      or $usage->();
+    $usage->() unless defined $name;
+    update_switch($name);
+    return;
+}
+
+sub delete_master {
+    my $usage = sub {
+        printf( "Usage for %s --action=delete:\n" );
+        printf( "    vyatta-switch-master --action=delete --name=<name>\n");
+        exit(1);
+    };
+    my ($name);
+    GetOptions( "name=s" => \$name, )
+      or $usage->();
+    $usage->() unless defined $name;
+
+    my @switches = get_physical_switches();
+    for my $switch (@switches) {
+        my $def_name = get_default_softswitch_name($switch);
+        if ( $def_name eq $name ) {
+            return;
+        }
+    }
+    system("ip link set $name down");
+    system("ip link delete $name");
+
+    return;
+}
+
+sub process_master {
+    my ($action) = $ENV{'COMMIT_ACTION'};
+    if ( $action eq "DELETE" ) {
+        delete_master();
+    } else {
+        update_master();
+    }
+}
+
+sub get_default_softswitch_name {
+    my $switch = shift;
+    return "sw$switch";
+}
+
+
+my %actions = (
+    "process"    => \&process_master,
+    "update"     => \&update_master,
+    "delete"     => \&delete_master,
+);
+call_action_by_name( \%actions, "action", "" );

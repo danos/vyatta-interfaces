@@ -1,0 +1,4 @@
+help: Monitor specified erspan interface
+allowed: ${vyatta_sbindir}/vyatta-interfaces.pl --show erspan
+run: bmon -U -b -r 10 -p $4
+

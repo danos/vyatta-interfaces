@@ -1,0 +1,4 @@
+help: Clear interface information for a given erspan tunnel interface
+allowed: local -a array ;
+	 array=( /sys/class/net/erspan* ) ;
+	 echo  -n ${array[@]##*/}

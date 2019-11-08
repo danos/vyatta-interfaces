@@ -1,0 +1,2 @@
+help: Monitor interfaces
+run: bmon -U -b -r 10 -p  lo*,dp*,br*,bond*,tun*,vtun*,vti*,ppp*,lttp*

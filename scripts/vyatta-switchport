@@ -1,0 +1,212 @@
+#!/usr/bin/perl
+
+# Copyright (c) 2017-2018, AT&T Intellectual Property.
+# All rights reserved.
+# Copyright (c) 2017 Brocade Communications Systems, Inc.
+# All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+
+use strict;
+use warnings;
+use lib "/opt/vyatta/share/perl5";
+
+use Getopt::Long;
+use Readonly;
+use File::Basename;
+use File::Slurp qw(read_dir);
+use List::MoreUtils qw(uniq);
+
+use Vyatta::Configd;
+use Vyatta::Config;
+use Vyatta::Interface;
+use Vyatta::Misc;
+use Vyatta::VPlaned;
+use Vyatta::SwitchConfig qw(get_hwcfg get_physical_switches
+  get_default_switchports check_software_features);
+
+Readonly my $SCRIPT_NAME => basename($0);
+
+sub call_action_by_name {
+    my ( $actions, $script_name, $opt_name, $usage ) = @_;
+
+    my $usagefn = sub {
+        printf( "Usage for %s %s:\n", $script_name, $usage );
+        printf( "    %s %s --%s=[%s]\n",
+            $script_name, $usage, $opt_name, join( "|", keys( %{$actions} ) ) );
+        exit(1);
+    };
+
+    my ($name);
+    GetOptions( "$opt_name=s" => \$name, ) or $usagefn->();
+    $usagefn->() unless ( defined($name) );
+
+    my $action = $actions->{$name};
+    $usagefn->() unless ( defined($action) );
+
+    return $action->();
+}
+
+sub get_softswitch_name {
+    my ($swname) = @_;
+    my $client = Vyatta::Configd::Client->new();
+    my $tree = eval { $client->tree_get_hash("interfaces switch"); };
+    return
+      if !defined($tree);
+    my $match_sw_name = sub {
+        my ($switch) = @_;
+        return $switch->{'name'}
+          if grep { $_ eq $swname } @{ $switch->{'physical-switch'} };
+        return;
+    };
+    my ($sswname) =
+      grep { defined($_) } map { $match_sw_name->($_) } @{ $tree->{'switch'} };
+    return $sswname;
+}
+
+sub get_switch_id {
+    my ($ifname) = @_;
+    my %swport_map = get_hwcfg();
+    return $swport_map{$ifname};
+}
+
+sub list_physical_switches {
+    print join( " ", get_physical_switches ) . "\n";
+}
+
+sub process_physical_switch {
+    my ($action) = $ENV{'COMMIT_ACTION'};
+    if ( $action eq "DELETE" ) {
+        delete_physical_switch();
+    } else {
+        update_physical_switch();
+    }
+}
+
+sub update_physical_switch {
+    my $usage = sub {
+        printf( "Usage for %s --action=update-physical-switch:\n",
+            $SCRIPT_NAME );
+        printf(
+"    %s --action=update-port --phy-switch=<name> --sw-name=<name>\n",
+            $SCRIPT_NAME );
+        exit(1);
+    };
+    my ( $phy_switch, $swname );
+    GetOptions(
+        "phy-switch=s" => \$phy_switch,
+        "sw-name=s"    => \$swname,
+    ) or $usage->();
+    $usage->() unless defined $phy_switch and defined $swname;
+
+    my $read_ifindex = sub {
+        my ($file) = @_;
+        open( my $fh, "<", $file ) or return;
+        my $ifindex = do { local $/; <$fh> };
+        return $ifindex;
+    };
+
+    my $get_master_ifindex = sub {
+        my ($ifname) = @_;
+        return $read_ifindex->("/sys/class/net/$ifname/master/ifindex");
+    };
+
+    my $get_ifindex = sub {
+        my ($ifname) = @_;
+        return $read_ifindex->("/sys/class/net/$ifname/ifindex");
+    };
+
+    my $list_ports = sub {
+        opendir( my $dh, "/sys/class/net" );
+        my @ifs = grep { /^[^.]/ } readdir($dh);
+        closedir($dh);
+        return @ifs;
+    };
+
+    my $find_switch_name = sub {
+        my ($ifindex) = @_;
+        my ($swname) =
+          grep { $get_ifindex->($_) == $ifindex } $list_ports->();
+        return $swname;
+    };
+
+    my $swap_switchport = sub {
+        my ( $switchport, $sw_ifindex, $new_sw_ifindex ) = @_;
+        if ( defined($sw_ifindex) ) {
+            my $old_sw = $find_switch_name->($sw_ifindex);
+            system(
+"vyatta-switch --action=remove-interface -- --br-name=$old_sw --if-name=$switchport"
+            );
+        }
+        my $new_sw = $find_switch_name->($new_sw_ifindex);
+        system(
+"vyatta-switch --action=enslave-interface -- --br-name=$new_sw --if-name=$switchport"
+        );
+    };
+
+    my $new_sw_ifindex = $get_ifindex->($swname);
+    foreach my $switchport (get_default_switchports) {
+        next if $phy_switch ne get_switch_id($switchport);
+        my $sw_ifindex = $get_master_ifindex->($switchport);
+        $swap_switchport->( $switchport, $sw_ifindex, $new_sw_ifindex )
+          if !defined($sw_ifindex)
+          || $sw_ifindex != $new_sw_ifindex;
+    }
+}
+
+sub delete_physical_switch {
+    my $usage = sub {
+        printf( "Usage for %s --action=delete-physical-switch:\n",
+            $SCRIPT_NAME );
+        printf(
+"    %s --action=update-port --phy-switch=<name> --sw-name=<name>\n",
+            $SCRIPT_NAME );
+        exit(1);
+    };
+    my ( $phy_switch, $swname );
+    GetOptions(
+        "phy-switch=s" => \$phy_switch,
+        "sw-name=s"    => \$swname,
+    ) or $usage->();
+    $usage->() unless defined $phy_switch and defined $swname;
+
+    foreach my $swport (get_default_switchports) {
+        next if $phy_switch ne get_switch_id($swport);
+        system(
+"vyatta-switch --action=remove-interface -- --br-name=$swname --if-name=$swport"
+        );
+    }
+}
+
+sub check_master {
+    my $usage = sub {
+        printf( "Usage for %s --action=check-master:\n", $SCRIPT_NAME );
+        printf( "    %s --action=check-master --ifname=<name>\n",
+            $SCRIPT_NAME );
+        exit(1);
+    };
+    my ($ifname);
+    GetOptions( "ifname=s" => \$ifname, )
+      or $usage->();
+    $usage->() unless defined $ifname;
+
+    my %swport_map = get_hwcfg();
+    return unless defined $swport_map{$ifname};
+
+    my $config = Vyatta::Config->new();
+    return
+      if $config->exists(
+        "interfaces dataplane $ifname hardware-switching disable");
+
+	my ( $status, $errmsg ) = check_software_features($ifname, $config);
+	die("$errmsg\n") if ( !$status );
+}
+
+my %actions = (
+    "check-master"            => \&check_master,
+    "list-physical-switches"  => \&list_physical_switches,
+    "process-physical-switch" => \&process_physical_switch,
+    "update-physical-switch"  => \&update_physical_switch,
+    "delete-physical-switch"  => \&delete_physical_switch,
+);
+call_action_by_name( \%actions, $SCRIPT_NAME, "action", "" );

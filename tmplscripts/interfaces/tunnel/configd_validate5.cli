@@ -1,0 +1,3 @@
+#!/opt/vyatta/bin/cliexpr
+commit:expression: !pattern $VAR(./address/@@)".*:.*" && $VAR(./encapsulation/@) == "gre-multipoint" || $VAR(./encapsulation/@) != "gre-multipoint" ; "IPv6 addresses ($VAR(./address/@@)) are forbidden for gre-multipoint encapsulation type."
+commit: interface-address-check $VAR(@) $VAR(./address/@@)

@@ -1,0 +1,145 @@
+module vyatta-interfaces-vif-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-interfaces-vif:1";
+	prefix interfaces-vif;
+
+	import vyatta-interfaces-bridge {
+		prefix br;
+	}
+	import vyatta-interfaces {
+		prefix if;
+	}
+	import configd {
+		prefix configd;
+	}
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+		 Postal: 208 S. Akard Street
+		         Dallas, TX 75202
+		         USA
+		 Web: www.att.com";
+
+	description
+		"Copyright (c) 2017-2019, AT&T Intellectual Property.
+		 All rights reserved.
+
+		 Copyright (c) 2015-2016 by Brocade Communications Systems, Inc.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or
+		 without modification, are permitted provided that the following
+		 conditions are met:
+
+		 1. Redistributions of source code must retain the above copyright
+			notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+			copyright notice, this list of conditions and the following
+			disclaimer in the documentation and/or other materials provided
+			with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+			contributors may be used to endorse or promote products derived
+			from this software without specific prior written permission.
+
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+
+		 Vyatta system-level configuration utiliites, templates and scripts.";
+
+	revision 2016-03-28 {
+		description "Remove use of bash in action scripts";
+	}
+	revision 2015-07-06 {
+		description "Initial revision.";
+	}
+
+	feature inner-vlan;
+
+	grouping vif-parameters {
+		leaf description {
+			type string;
+			configd:help "Interface Description";
+			configd:update "ip li set dev $VAR(../../@).$VAR(../@) alias '$VAR(@)'";
+			configd:delete "vyatta-interfaces.pl --dev $VAR(../../@).$VAR(../@) --delete-description";
+		}
+		uses if:vif-parameters-base;
+	}
+
+	grouping vif-group {
+		configd:validate "vyatta-interfaces.pl --dev $VAR(@) --check-vifs";
+		list vif {
+			configd:priority "319";
+			configd:help "Virtual Interface (VIF) ID";
+			configd:create "vyatta-interfaces.pl --dev $VAR(../@) --create-vif $VAR(@)";
+			configd:delete "vyatta-interfaces.pl --dev $VAR(../@) --delete-vif $VAR(@)";
+			configd:validate "/opt/vyatta/share/tmplscripts/interfaces/vif/configd_validate1.cli";
+			configd:end "vyatta-intf-end $VAR(../@).$VAR(@)";
+			key "tagnode";
+			unique "vlan inner-vlan";
+			leaf tagnode {
+				type uint32 {
+					range 1..99999;
+				}
+				configd:help "Virtual Interface (VIF) ID";
+			}
+			leaf vlan {
+				type uint32 {
+					range 1..4094;
+				}
+				configd:help "Virtual Local Area Network (VLAN) ID [REQUIRED]";
+				configd:update "vyatta-interfaces.pl --dev $VAR(../../@) --update-vif $VAR(../@) --update-vlan";
+				configd:delete "vyatta-interfaces.pl --dev $VAR(../../@) --update-vif $VAR(../@) --delete-vlan";
+			}
+			leaf inner-vlan {
+				if-feature inner-vlan;
+				type uint32 {
+					range 1..4094;
+				}
+				configd:help "Virtual Local Area Network (VLAN) ID";
+				configd:update "vyatta-interfaces.pl --dev $VAR(../../@) --update-vif $VAR(../@) --update-ivlan";
+				configd:delete "vyatta-interfaces.pl --dev $VAR(../../@) --update-vif $VAR(../@) --del-ivlan";
+			}
+			leaf disable-link-detect {
+				type empty;
+				configd:help "Ignore link state changes";
+				configd:create "vyatta-link-detect $VAR(../@) off";
+				configd:delete "vyatta-link-detect $VAR(../@) on";
+			}
+			uses vif-parameters;
+			leaf mtu {
+				type uint32 {
+					range 68..9000;
+				}
+				configd:priority "382";
+				configd:help "Maximum Transmission Unit (MTU)";
+				configd:update "vyatta-interfaces.pl --dev $VAR(../../@) --update-vif $VAR(../@) --set-mtu $VAR(@)";
+				configd:delete "vyatta-interfaces.pl --dev $VAR(../../@) --update-vif $VAR(../@) --del-mtu 1500";
+			}
+			leaf-list address {
+				type if:address-dhcp;
+				ordered-by "user";
+				configd:help "IP address";
+				configd:create "vyatta-address add $VAR(../../@).$VAR(../@) $VAR(@)";
+				configd:allowed "echo 'dhcp dhcpv6 <>'";
+
+			}
+			uses br:bridge-group {
+				refine bridge-group {
+					configd:end "vyatta-bridge.pl ${COMMIT_ACTION} $VAR(../../@).$VAR(../@)";
+				}
+			}
+		}
+	}
+}

@@ -1,0 +1,154 @@
+module vyatta-interfaces-erspan-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-interfaces-erspan:1";
+	prefix vyatta-interfaces-erspan-v1;
+
+	import vyatta-dscp-v1 {
+		prefix dscp;
+	}
+	import vyatta-interfaces-v1 {
+		prefix if;
+	}
+	import vyatta-types-v1 {
+		prefix types;
+	}
+	import configd-v1 {
+		prefix configd;
+	}
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+		 Postal: 208 S. Akard Street
+		         Dallas, TX 75202
+		         USA
+		 Web: www.att.com";
+
+	description
+		"Copyright (c) 2017, AT&T Intellectual Property.
+		 All rights reserved.
+		 Copyright (c) 2016-2017 by Brocade Communications Systems, Inc.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or
+		 without modification, are permitted provided that the following
+		 conditions are met:
+
+		 1. Redistributions of source code must retain the above copyright
+			notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+			copyright notice, this list of conditions and the following
+			disclaimer in the documentation and/or other materials provided
+			with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+			contributors may be used to endorse or promote products derived
+			from this software without specific prior written permission.
+
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+
+		 ERSPAN interface configuration";
+
+	revision 2017-08-25 {
+		description "Make use of if:if-parameter-description grouping";
+	}
+
+	revision 2017-04-11 {
+		description "Add typedef for erspan ifname";
+	}
+
+	revision 2016-11-16 {
+		description "Increase max MTU size";
+	}
+
+	revision 2015-09-09 {
+		description "Initial revision";
+	}
+
+	typedef erspan-ifname {
+		type types:interface-ifname {
+			pattern 'erspan[0-9]+';
+			configd:pattern-help "<erspanN>";
+		}
+	}
+
+	augment /if:interfaces {
+		list erspan {
+			configd:priority "381";
+			configd:end "vyatta-interfaces-tunnel-erspan --erspan_tunnel=$VAR(@)";
+			configd:help "ERSPAN GRE interface";
+			description "ERSPAN GRE interface";
+			key "ifname";
+			leaf ifname {
+				type erspan-ifname;
+				configd:help "ERSPAN GRE interface";
+				description "ERSPAN GRE interface";
+			}
+			uses if:if-parameter-description;
+			leaf disable {
+				type empty;
+				configd:help "Disable interface";
+				description "Disable interface";
+			}
+			leaf local-ip {
+				type types:ipv4-address;
+				configd:help "Local IP address for ERSPAN interface";
+				description "Local IP address for ERSPAN interface";
+				mandatory true;
+			}
+			leaf mtu {
+				type uint16 {
+					range 68..16384;
+				}
+				configd:priority "382";
+				configd:help "Maximum Transmission Unit (MTU)";
+				default "1500";
+				description "Maximum Transmission Unit (MTU)";
+			}
+			leaf remote-ip {
+				type types:ipv4-address;
+				configd:help "Remote IP address for ERSPAN interface";
+				description "Remote IP address for ERSPAN interface";
+				mandatory true;
+			}
+			container ip {
+				configd:help "IPv4 specific ERSPAN tunnel parameters";
+				description "IPv4 specific ERSPAN tunnel parameters";
+				leaf ttl {
+					type uint8;
+					configd:help "Time to live field";
+					description "Time to live field";
+					default "255";
+				}
+				leaf tos {
+					type union {
+						type dscp:dscp-name;
+						type enumeration {
+							enum "inherit" {
+								configd:help "Inherit from original IP header";
+							}
+						}
+						type string {
+							pattern '0x[0-9a-fA-F]{1,2}';
+							configd:pattern-help "<0x00-0xFF>";
+						}
+					}
+					configd:help "Type of Service (TOS)";
+					description "Type of Service (TOS)";
+					default "inherit";
+				}
+			}
+		}
+	}
+}

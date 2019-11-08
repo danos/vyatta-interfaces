@@ -1,0 +1,2 @@
+#!/opt/vyatta/bin/cliexpr
+syntax:expression: $VAR(@) == "none" || pattern $VAR(@)"^([01]?[[:digit:]][[:digit:]]?|2[0-4][[:digit:]]|25[0-5])$" ; "Must be 'none' or a number <0-255>"

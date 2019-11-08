@@ -1,0 +1,163 @@
+module vyatta-interfaces-pppoe-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-interfaces-pppoe:1";
+	prefix vyatta-interfaces-pppoe-v1;
+
+	import vyatta-interfaces-v1 {
+		prefix if;
+	}
+	import configd-v1 {
+		prefix configd;
+	}
+	import vyatta-types-v1 {
+		prefix types;
+	}
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+			Postal: 208 S. Akard Street
+				Dallas, TX 75202
+				USA
+			Web: www.att.com";
+
+	description
+		"Copyright (c) 2017-2018, AT&T Intellectual Property.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or
+		 without modification, are permitted provided that the following
+		 conditions are met:
+
+		 1. Redistributions of source code must retain the above copyright
+			notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+			copyright notice, this list of conditions and the following
+			disclaimer in the documentation and/or other materials provided
+			with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+			contributors may be used to endorse or promote products derived
+			from this software without specific prior written permission.
+
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+		
+		 Configuration nodes for PPPoE tunnels.
+		 RPC commands for setup or tear down of PPPoE tunnels.";
+	
+	revision 2018-08-03 {
+		description "Change call/hangup RPC scripts";
+	}
+
+	revision 2018-06-04 {
+		description "Remove multiple underlying interfaces.";
+	}
+
+	revision 2018-04-18 {
+		description "Initial revision.";
+	}
+
+	augment /if:interfaces {
+		list pppoe {
+			configd:help "Point-to-Point Protocol over Ethernet (PPPoE) interface";
+			configd:update "/opt/vyatta/sbin/vyatta-pppoe --setup $VAR(@)";
+			configd:delete "/opt/vyatta/sbin/vyatta-pppoe --teardown $VAR(@)";
+			configd:priority "700";
+			key "ifname";
+			leaf ifname {
+				type string {
+					pattern 'pppoe[0-9]+';
+					length 1..15;
+				}
+				description "Name of the PPPoE interface.";
+			}
+			leaf interface {
+				configd:help "The underlying interface";
+				description "This is the underlying interface used to send PPPoE discovery packets.";
+				type types:interface-ifname;
+				mandatory true;
+				must "(current() = /if:interfaces/*/*[(local-name(.) = 'tagnode') or (local-name(.) = 'ifname')] "
+					+ "or /if:interfaces/*/*[local-name(.) = 'vif'][./../* = substring-before(current(), '.')]"
+					+ "/*[(local-name(.) = 'tagnode') or (local-name(.) = 'ifname')][. = substring-after(current(), '.')])"
+				{
+					 error-message "Interface must exist.";
+				}
+				configd:allowed "vyatta-interfaces.pl --show all";
+			}
+			leaf connect-on-demand {
+				type empty;
+				description "Initiate the link only on demand, i.e. when data traffic is present.";
+				configd:help "Automatic establishment of PPPoE connection when traffic is sent";
+			}
+			leaf default-route {
+				type empty;
+				description "Add a default route to the system routing tables, using the peer as the gateway.";
+				configd:help "Enable/disable default route to peer when link comes up.";
+			}
+			leaf idle-timeout {
+				type uint32 {
+					range 1..172800;
+				}
+				units "seconds";
+				description "The idle timeout in seconds before the pppd client automatically disconnects.";
+				configd:help "Delay (in seconds) before disconnecting idle session.";
+			}
+			leaf mtu {
+				type uint32 {
+					range 68..1500;
+				}
+				configd:help "Set a custom mtu.";
+			}
+			leaf name-server {
+				type empty;
+				description "Allow nameserver entries from remote host.";
+				configd:help "Enable/disable use of name server entries from peer.";
+			}
+			leaf service-name {
+				type string;
+				description "The assumed name of the remote system for authentication purposes.
+					Only connect to access concentrators advertising this.";
+				configd:help "Service name (only connect to access concentrators advertising this)";
+			}
+		}
+	}
+	rpc call {
+		description "Setup a call to a remote end";
+		input {
+			leaf unit {
+				description
+					"Setup a call on this unit number";
+				mandatory true;
+				type uint16 {
+					range 0..15;
+				}
+			}
+		}
+		configd:call-rpc "vyatta-pppoe-rpc --call";
+	}
+	rpc hangup {
+		description "Tear down pppoe tunnel on this unit number";
+		input {
+			leaf unit {
+				description
+					"Tear down a call on this unit number";
+				mandatory true;
+				type uint16 {
+					range 0..15;
+				}
+			}
+		}
+		configd:call-rpc "vyatta-pppoe-rpc --hangup";
+	}
+}

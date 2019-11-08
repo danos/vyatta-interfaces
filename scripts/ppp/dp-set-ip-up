@@ -1,0 +1,22 @@
+#!/bin/bash
+# Copyright (c) 2018-2019, AT&T Intellectual Property.
+# All Rights Reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Propagate PPPoE session information to dataplane
+
+${vyatta_sbindir:=/opt/vyatta/sbin}
+
+${vyatta_sbindir}/vyatta-pppoe --dp-set="$IFNAME $DEVICE $SESSION $MYETH $PEERETH"
+[ -x ${vyatta_sbindir}/vrf-bind-interface ] && ${vyatta_sbindir}/vrf-bind-interface --dev="$IFNAME"
+
+# When doing multiple standalone (i.e. no L2TP) PPPoE connections to the same
+# destination server, create an ecmp route for both tunnels. Otherwise the
+# second tunnel overwrites the route of the first one.
+if [[ $IFNAME =~ pppoe* ]]; then
+    while true; do
+        ip route del "$PPP_REMOTE"  &>/dev/null || break
+    done
+    ${vyatta_sbindir}/vyatta-pppoe --ecmp="$PPP_REMOTE"
+fi

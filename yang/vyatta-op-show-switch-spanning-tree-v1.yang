@@ -1,0 +1,132 @@
+module vyatta-op-show-switch-spanning-tree-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-op-show-switch-spanning-tree-:1";
+	prefix vyatta-op-show-switch-spanning-tree-v1;
+
+	import vyatta-opd-extensions-v1 {
+		prefix opd;
+	}
+	import vyatta-op-show-v1 {
+		prefix show;
+	}
+	import vyatta-op-show-switch-v1 {
+		prefix show-switch;
+	}
+	import vyatta-types-v1 {
+		prefix types;
+	}
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+		 Postal: 208 S. Akard Street
+		         Dallas, TX 75202
+		         USA
+		 Web: www.att.com";
+
+	description
+		"Copyright (c) 2017-2019 AT&T Intellectual Property.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or
+		 without modification, are permitted provided that the following
+		 conditions are met:
+
+		 1. Redistributions of source code must retain the above copyright
+			notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+			copyright notice, this list of conditions and the following
+			disclaimer in the documentation and/or other materials provided
+			with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+			contributors may be used to endorse or promote products derived
+			from this software without specific prior written permission.
+
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+
+		Add the 'spanning-tree' level under 'show switch' for operational CLI";
+
+	revision 2019-03-22 {
+		description "Add status option";
+	}
+
+	revision 2017-11-26 {
+		description "Initial version";
+	}
+
+	opd:augment /show:show/show-switch:switch/show-switch:switch-name {
+		opd:command spanning-tree {
+			opd:help "Show switch spanning tree information";
+			opd:on-enter 'vyatta-switch-stp-op --action=show_stp --switch="$3"';
+
+			opd:command bridge {
+				opd:help "Show bridge spanning tree information";
+				opd:on-enter 'vyatta-switch-stp-op --action=show_stp_bridge --switch="$3"';
+
+				opd:command brief {
+					opd:help "Show brief switch spanning tree information";
+					opd:on-enter 'vyatta-switch-stp-op --action=show_stp_bridge --switch="$3" --format=brief';
+				}
+
+				opd:command status {
+					opd:help "Show switch spanning tree status";
+					opd:on-enter 'vyatta-switch-stp-op --action=show_stp_bridge --switch="$3" --format=status';
+				}
+			}
+
+			opd:command port {
+				opd:help "Show port spanning tree information";
+				opd:on-enter 'vyatta-switch-stp-op --action=show_stp_port --switch="$3"';
+
+				opd:argument interface-name {
+					opd:help "Show spanning tree information for a given port";
+					opd:on-enter 'vyatta-switch-stp-op --action=show_stp_port --switch="$3" --port=$6';
+					opd:allowed 'vyatta-interfaces.pl --show all';
+					type types:interface-ifname;
+
+					opd:command brief {
+						opd:help "Show brief spanning tree information for a given port";
+						opd:on-enter 'vyatta-switch-stp-op --action=show_stp_port --switch="$3" --port="$6" --format=brief';
+					}
+
+					opd:command status {
+						opd:help "Show switch spanning tree status for a given port";
+						opd:on-enter 'vyatta-switch-stp-op --action=show_stp_port --switch="$3" --port="$6" --format=status';
+					}
+				}
+
+				opd:command brief {
+					opd:help "Show brief port spanning tree information";
+					opd:on-enter 'vyatta-switch-stp-op --action=show_stp_port --switch="$3" --format=brief';
+				}
+
+				opd:command status {
+					opd:help "Show port spanning tree status";
+					opd:on-enter 'vyatta-switch-stp-op --action=show_stp_port --switch="$3" --format=status';
+				}
+			}
+
+			opd:command brief {
+				opd:help "Show brief bridge spanning tree information";
+				opd:on-enter 'vyatta-switch-stp-op --action=show_stp --switch="$3" --format=brief';
+			}
+
+			opd:command status {
+				opd:help "Show switch spanning tree status";
+				opd:on-enter 'vyatta-switch-stp-op --action=show_stp --switch="$3" --format=status';
+			}
+		}
+	}
+}

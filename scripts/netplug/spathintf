@@ -1,0 +1,44 @@
+#!/usr/bin/perl
+#
+# Copyright (c) 2019, AT&T Intellectual Property.
+# All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+use strict;
+use warnings;
+
+use lib "/opt/vyatta/share/perl5/";
+use Vyatta::Config;
+use Vyatta::Misc;
+use Vyatta::Interface qw(add_interface_redirect);
+use File::Slurp;
+
+#
+# If the device passed is the spathintf then refresh the tc rules
+# linking the switch/switch.vif to the spathintf
+#
+
+my $dev = shift;
+my $intf;
+
+exit 0 if ( $dev ne ".spathintf" );
+
+opendir( DH, "/sys/class/net" );
+my @files = readdir(DH);
+closedir(DH);
+
+foreach $intf (@files) {
+    if ( $intf =~ /^sw/ ) {
+        add_interface_redirect($intf);
+    } elsif ( $intf =~ /^tun/ ) {
+        my $tun_type = read_file("/sys/class/net/$intf/type");
+
+        # 823 is ARPHRD_IP6GRE from include/uapi/linux/if_arp.h
+        add_interface_redirect($intf) if ( $tun_type == 823 );
+    }
+}
+exit 0
+
+  # end of file

@@ -1,0 +1,94 @@
+#! /usr/bin/perl
+# Author: Erik Ziegenbalg <ez681d@att.com>
+# Date: Feb 2018
+# Description: Helper scripts to start/stop pppoe session via the PPP.pm library.
+#
+# Copyright (c) 2017-2018, AT&T Intellectual Property.
+#
+# All Rights Reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+
+use strict;
+use warnings;
+
+use lib "/opt/vyatta/share/perl5/";
+use Vyatta::PPP
+  qw(ppp_update_config ppp_remove_config ppp_call ppp_hangup ppp_dp_ses_delete ppp_dp_ses_set add_ecmp_rule);
+
+use Getopt::Long;
+
+sub teardown {
+    my ($pppname) = @_;
+    die "No PPPoE interface specified\n" unless defined $pppname;
+    ppp_remove_config($pppname);
+    ppp_hangup($pppname);
+}
+
+sub hangup {
+    my ($pppname) = @_;
+    die "No PPPoE interface specified\n" unless defined $pppname;
+    ppp_hangup($pppname);
+}
+
+sub setup {
+    my ($pppname) = @_;
+    die "No PPPoE interface specified\n" unless defined $pppname;
+    ppp_update_config($pppname);
+    ppp_call($pppname);
+}
+
+sub call {
+    my ($pppname) = @_;
+    die "No PPPoE interface specified\n" unless defined $pppname;
+    ppp_call($pppname);
+}
+
+sub dp_set {
+    my $input_string = shift;
+    my ( $ifname, $device, $session, $myeth, $peereth );
+    if ( $input_string =~ /^(\w*) (\w*) ([0-9]+) (\S*) (\S*)$/ ) {
+        ( $ifname, $device, $session, $myeth, $peereth ) =
+          ( $1, $2, $3, $4, $5 );
+    }
+    else {
+        die __FILE__ . ": dp_set: Input string malformed.\n";
+    }
+
+    ppp_dp_ses_set( $ifname, $device, $session, $myeth, $peereth );
+}
+
+sub dp_delete {
+    my $input_string = shift;
+    my ( $ifname, $device, $session, $myeth, $peereth );
+    if ( $input_string =~ /^(\w*) (\w*) ([0-9]+) (\S*) (\S*)$/ ) {
+        ( $ifname, $device, $session, $myeth, $peereth ) =
+          ( $1, $2, $3, $4, $5 );
+    }
+    else {
+        die __FILE__ . ": dp_delete: Input string malformed.\n";
+    }
+
+    ppp_dp_ses_delete( $ifname, $device, $session, $myeth, $peereth );
+}
+
+my ( $teardown, $setup, $hangup, $call, $dp_set, $dp_del, $ecmp );
+
+# All require the pppoe interface name
+GetOptions(
+    "teardown=s"  => \$teardown,
+    "setup=s"     => \$setup,
+    "hangup=s"    => \$hangup,
+    "call=s"      => \$call,
+    "dp-set=s"    => \$dp_set,
+    "dp-delete=s" => \$dp_del,
+    "ecmp=s"      => \$ecmp,
+);
+
+teardown($teardown)  if defined($teardown);
+setup($setup)        if defined($setup);
+hangup($hangup)      if defined($hangup);
+call($call)          if defined($call);
+dp_set($dp_set)      if defined($dp_set);
+dp_delete($dp_del)   if defined($dp_del);
+add_ecmp_rule($ecmp) if defined($ecmp);

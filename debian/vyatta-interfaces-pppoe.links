@@ -1,0 +1,3 @@
+/opt/vyatta/etc/ppp/ip-up.d/dp-set-ip-up /etc/ppp/ip-up.d/dp-set-ip-up
+/opt/vyatta/etc/ppp/ip-down.d/dp-delete-ip-down /etc/ppp/ip-down.d/dp-delete-ip-down
+/opt/vyatta/etc/ppp/peers/pppoe-provider-template /etc/ppp/peers/pppoe-provider-template

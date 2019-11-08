@@ -1,0 +1,7 @@
+scripts/ppp/vyatta-pppoe opt/vyatta/sbin
+scripts/ppp/vyatta-pppoe-rpc opt/vyatta/sbin
+systemd/vyatta-pppoe@.service lib/systemd/system
+etc/pppoe/pppoe-provider-template opt/vyatta/etc/ppp/peers
+scripts/ppp/dp-set-ip-up opt/vyatta/etc/ppp/ip-up.d
+scripts/ppp/dp-delete-ip-down opt/vyatta/etc/ppp/ip-down.d
+lib/Vyatta/PPP.pm opt/vyatta/share/perl5/Vyatta

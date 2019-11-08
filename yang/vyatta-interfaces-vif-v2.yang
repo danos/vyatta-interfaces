@@ -1,0 +1,344 @@
+module vyatta-interfaces-vif-v2 {
+	namespace "urn:vyatta.com:mgmt:vyatta-interfaces-vif:2";
+	prefix vyatta-interfaces-vif-v2;
+
+	import vyatta-interfaces-v1 {
+		prefix if;
+	}
+	import configd-v1 {
+		prefix configd;
+	}
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+		 Postal: 208 S. Akard Street
+		         Dallas, TX 75202
+		         USA
+		 Web: www.att.com";
+
+	description
+		"Copyright (c) 2017-2019, AT&T Intellectual Property.
+		 All rights reserved.
+		 Copyright (c) 2015-2016 by Brocade Communications Systems, Inc.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or
+		 without modification, are permitted provided that the following
+		 conditions are met:
+
+		 1. Redistributions of source code must retain the above copyright
+			notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+			copyright notice, this list of conditions and the following
+			disclaimer in the documentation and/or other materials provided
+			with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+			contributors may be used to endorse or promote products derived
+			from this software without specific prior written permission.
+
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+
+		 Vyatta system-level configuration utiliites, templates and scripts.";
+
+	revision 2019-02-04 {
+		description
+			"Remove per vlan-protocol update actions. These should be done by
+			parent.";
+	}
+	revision 2018-10-01 {
+		description
+			"Remove per vif create delete actions. These should be done by parent";
+	}
+	revision 2018-09-04 {
+		description "Move VIF address validation into YANG";
+	}
+	revision 2018-08-30 {
+		description
+			"Move 'vyatta-interfaces.pl --check-vifs' validation into YANG";
+	}
+	revision 2018-07-03 {
+		description "Call vyatta-address delete when removing vif addresses";
+	}
+	revision 2018-05-11 {
+		description "Call disable-link-detect script with full interface name";
+	}
+	revision 2018-03-06 {
+		description "Add restrictions to interface name lengths";
+	}
+	revision 2017-10-31 {
+		description "Include oper-status and admin-status in operational state";
+	}
+	revision 2017-10-04 {
+		description "Move check vif MTU in YANG";
+	}
+	revision 2017-08-25 {
+		description "Add help for vlan protocol ids";
+	}
+	revision 2016-05-19 {
+		description "Added status deprecated for host vif interface mtu.";
+	}
+	revision 2016-03-28 {
+		description "Remove use of bash in action scripts";
+	}
+	revision 2015-08-14 {
+		description "Initial revision of version 2.";
+	}
+
+	grouping vif-parameters {
+		leaf description {
+			type string;
+			configd:help "Interface Description";
+			configd:update "ip li set dev $VAR(../../@).$VAR(../@) alias '$VAR(@)'";
+			configd:delete "vyatta-interfaces.pl --dev $VAR(../../@).$VAR(../@) --delete-description";
+		}
+		uses if:vif-parameters-base;
+	}
+
+	grouping vif-group-body {
+		leaf vlan {
+			type uint32 {
+				range 1..4094;
+			}
+			configd:help "Virtual Local Area Network (VLAN) ID [REQUIRED]";
+		}
+		leaf inner-vlan {
+			type uint32 {
+				range 1..4094;
+			}
+
+			must "../vlan" {
+				error-message "Must set VLAN ID when using inner-vlan.";
+			}
+
+			must "not(../vlan) or ((string-length(../../*[local-name(.) = 'tagnode' or local-name(.) = 'ifname' or local-name(.) = 'name']) + string-length(../vlan)) < 14)" {
+				error-message "Auto-generated interface (interface name + VLAN ID) will be too long--Needs to be less than 14 characters.  Please reduce the length of the VLAN ID.";
+			}
+
+			must "not(not(../vlan)) or ((string-length(../../*[local-name(.) = 'tagnode' or local-name(.) = 'ifname' or local-name(.) = 'name']) + string-length(../tagnode)) < 14)" {
+				error-message "Auto-generated interface (interface name + VIF) will be too long--Needs to be less than 14 characters.  Please reduce the length of the VIF.";
+			}
+
+
+			configd:help "Virtual Local Area Network (VLAN) ID";
+		}
+		leaf disable-link-detect {
+			type empty;
+			configd:help "Ignore link state changes";
+			configd:create "vyatta-link-detect $VAR(../../@).$VAR(../@) off";
+			configd:delete "vyatta-link-detect $VAR(../../@).$VAR(../@) on";
+		}
+		uses vif-parameters;
+	}
+	grouping vif-group-base {
+		list vif {
+			configd:priority "319";
+			configd:help "Virtual Interface (VIF) ID";
+			configd:end "vyatta-intf-end $VAR(../@).$VAR(@)";
+			key "tagnode";
+			unique "vlan inner-vlan";
+
+			must "(string-length(../*[local-name(.) = 'tagnode' or local-name(.) = 'ifname' or local-name(.) = 'name']) + string-length(tagnode)) < 15" {
+				error-message "Interface (Interface name + VIF) will be too long--Needs to be less than 15 characters.  Please reduce the length of the VIF.";
+			}
+
+			must "(tagnode <= 4094) or vlan" {
+				error-message "VLAN ID required when VIF ID > 4094";
+			}
+
+			must "not(vlan) or (count(../vif[vlan=current()/vlan]) = 1) or " +
+				"(count(../vif[vlan=current()/vlan]/inner-vlan) = " +
+				"count(../vif[vlan=current()/vlan]))" {
+				error-message "VIFs may only share same VLAN ID if they " +
+					"have a different inner-vlan.";
+			}
+
+			must "vlan or inner-vlan or not(../vif[vlan=current()/tagnode])" {
+				error-message "VIFs may only share same VLAN if they " +
+					"have a different inner-vlan.";
+			}
+
+			must "not(address = 'dhcp' and address[contains(., '.')])" {
+				error-message "Can't configure static IPv4 address and DHCP " +
+					"on the same interface.";
+			}
+
+			must "not(address = 'dhcpv6' and address[contains(., ':')])" {
+				error-message "Can't configure static IPv6 address and " +
+					"DHCPv6 on the same interface.";
+			}
+
+			leaf tagnode {
+				type uint32 {
+					range 1..99999;
+				}
+				configd:help "Virtual Interface (VIF) ID";
+			}
+			uses vif-group-body;
+			leaf mtu {
+				status deprecated;
+				type uint32 {
+					range 68..9000;
+				}
+				must "not(../../*[local-name(.)='mtu']) or current() <= ../../*[local-name(.) = 'mtu']" {
+					error-message "MTU of VIF must be less than or equal to MTU of device";
+				}
+				configd:help "Maximum Transmission Unit (MTU)";
+			}
+			leaf-list address {
+				type if:address-dhcp;
+				ordered-by "user";
+				configd:help "IP address";
+
+				must "not(substring-before(current(), '/') = '127.0.0.1')" {
+					error-message "127.0.0.1 reserved for system use.";
+				}
+				must "not(" +
+					"substring-before(current(), '/') = '::1')" {
+					error-message "::1 reserved for system use.";
+				}
+				must "not(" +
+					"(substring-before(current(), '.') >= 224) and " +
+					"(substring-before(current(), '.') <= 239))" {
+					error-message "IPv4 address reserved for multicast use";
+				}
+				must "not(substring(current(), 1, 2) = 'FF')" {
+					error-message "IPv6 address reserved for multicast use";
+				}
+
+				configd:create "vyatta-address add $VAR(../../@).$VAR(../@) $VAR(@)";
+				configd:delete "vyatta-address delete $VAR(../../@).$VAR(../@) $VAR(@)";
+				configd:allowed "echo 'dhcp dhcpv6 <>'";
+			}
+		}
+	}
+	grouping vif-group {
+		list vif {
+			configd:priority "319";
+			configd:help "Virtual Interface (VIF) ID";
+			configd:end "vyatta-intf-end $VAR(../@).$VAR(@)";
+			key "tagnode";
+			unique "vlan inner-vlan";
+
+			must "(string-length(../*[local-name(.) = 'tagnode' or local-name(.) = 'ifname' or local-name(.) = 'name']) + string-length(tagnode)) < 15" {
+				error-message "Interface (Interface name + VIF) will be too long--Needs to be less than 15 characters.  Please reduce the length of the VIF.";
+			}
+
+			must "(tagnode <= 4094) or vlan" {
+				error-message "VLAN ID required when VIF ID > 4094";
+			}
+
+			must "not(vlan) or (count(../vif[vlan=current()/vlan]) = 1) or " +
+				"(count(../vif[vlan=current()/vlan]/inner-vlan) = " +
+				"count(../vif[vlan=current()/vlan]))" {
+				error-message "VIFs may only share same VLAN ID if they " +
+					"have a different inner-vlan.";
+			}
+
+			must "vlan or inner-vlan or not(../vif[vlan=current()/tagnode])" {
+				error-message "VIFs may only share same VLAN if they " +
+					"have a different inner-vlan.";
+			}
+
+			must "not(address = 'dhcp' and address[contains(., '.')])" {
+				error-message "Can't configure static IPv4 address and DHCP " +
+					"on the same interface.";
+			}
+
+			must "not(address = 'dhcpv6' and address[contains(., ':')])" {
+				error-message "Can't configure static IPv6 address and " +
+					"DHCPv6 on the same interface.";
+			}
+
+			leaf tagnode {
+				type uint32 {
+					range 1..99999;
+				}
+				configd:help "Virtual Interface (VIF) ID";
+			}
+			uses vif-group-body;
+			leaf mtu {
+				type uint32 {
+					range 68..9000;
+				}
+				must "not(../../*[local-name(.)='mtu']) or current() <= ../../*[local-name(.) = 'mtu']" {
+					error-message "MTU of VIF must be less than or equal to MTU of device";
+				}
+				configd:priority "382";
+				configd:help "Maximum Transmission Unit (MTU)";
+				configd:update "vyatta-interfaces.pl --dev $VAR(../../@) --update-vif $VAR(../@) --set-mtu $VAR(@)";
+				configd:delete "vyatta-interfaces.pl --dev $VAR(../../@) --update-vif $VAR(../@) --del-mtu 1500";
+			}
+			leaf-list address {
+				type if:address-dhcp;
+				ordered-by "user";
+				configd:help "IP address";
+
+				must "not(substring-before(current(), '/') ='127.0.0.1')" {
+					error-message "127.0.0.1 reserved for system use.";
+				}
+				must "not(" +
+					"substring-before(current(), '/') = '::1')" {
+					error-message "::1 reserved for system use.";
+				}
+				must "not(" +
+					"(substring-before(current(), '.') >= 224) and " +
+					"(substring-before(current(), '.') <= 239))" {
+					error-message "IPv4 address reserved for multicast use";
+				}
+				must "not(substring(current(), 1, 2) = 'FF')" {
+					error-message "IPv6 address reserved for multicast use";
+				}
+
+				configd:create "vyatta-address add $VAR(../../@).$VAR(../@) $VAR(@)";
+				configd:delete "vyatta-address delete $VAR(../../@).$VAR(../@) $VAR(@)";
+				configd:allowed "echo 'dhcp dhcpv6 <>'";
+			}
+			uses if:if-status;
+		}
+	}
+
+	grouping vlan-proto-group {
+		leaf vlan-protocol {
+			type enumeration {
+				enum 0x8100 {
+					configd:help "IEEE 802.1Q";
+					description "IEEE 802.1Q";
+				}
+				enum 0x88A8 {
+					configd:help "IEEE 802.1ad (QinQ)";
+					description "IEEE 802.1ad (QinQ)";
+				}
+				enum 0x9100 {
+					configd:help "Pre-standard QinQ";
+					description "Pre-standard QinQ";
+				}
+				enum 0x9200 {
+					configd:help "Pre-standard QinQ";
+					description "Pre-standard QinQ";
+				}
+				enum 0x9300 {
+					configd:help "Pre-standard QinQ";
+					description "Pre-standard QinQ";
+				}
+			}
+			configd:priority "381";
+			configd:help "Vlan Tag Protocol Identifier (default: 0x8100)";
+			description "Vlan Tag Protocol Identifier";
+			default "0x8100";
+		}
+	}
+}

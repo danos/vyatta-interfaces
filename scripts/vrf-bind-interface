@@ -1,0 +1,256 @@
+#!/usr/bin/perl
+# Author: Nachiketa Prachanda <nprachan@brocade.com>
+# Date: Mar 2016
+# Description: Modules for VRF related Interface config.
+#
+# **** License ****
+# Copyright (c) 2018, AT&T Intellectual Property. All rights reserved.
+#
+# Copyright (c) 2016 by Brocade Communications Systems, Inc.
+# All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+# **** End License ****
+use strict;
+use warnings;
+use lib '/opt/vyatta/share/perl5';
+
+use Getopt::Long;
+use Vyatta::Interface;
+use Vyatta::VRFInterface qw(vrf_bind_one);
+use Vyatta::VrfManager qw(update_interface_vrf);
+use Vyatta::Config;
+
+my $debug;
+
+sub dbg {
+    return unless $debug;
+    warn(@_);
+}
+
+sub dbg_dump {
+    return unless $debug;
+    require Data::Dumper;
+    my $msg = shift;
+    warn "$msg: " . Data::Dumper::Dumper(@_) . "\n";
+}
+
+# Map of interface -> routing-instance generated from the "routing" tree
+my $intf_to_rt_inst_conf_map;
+
+# Map of interface -> routing-instance generated from the "interface" tree
+my $cur_vrf_interfaces_map;
+my $orig_vrf_interfaces_map;
+
+# Functions for retrieving routing domain.
+my $fn_if2rt;
+my $fn_orig_if2rt;
+
+my $in_rt_filter;
+my $in_orig_rt_filter;
+
+sub init_vrf_functions {
+    my $cfg = Vyatta::Config->new();
+    $intf_to_rt_inst_conf_map = Vyatta::Interface::get_intf_rd_map($cfg);
+    $fn_if2rt =
+      Vyatta::Interface::get_intf_rt_inst_fn_for_map($intf_to_rt_inst_conf_map);
+    $fn_orig_if2rt = Vyatta::Interface::get_orig_intf_rt_inst_fn($cfg);
+    if ( defined($fn_if2rt) ) {
+        $in_rt_filter =
+          sub { my $intf = shift; return $fn_if2rt->( $intf->{name} ); }
+    }
+    if ( defined($fn_orig_if2rt) ) {
+        $in_orig_rt_filter =
+          sub { my $intf = shift; return $fn_orig_if2rt->( $intf->{name} ); }
+    }
+}
+
+sub if2rt {
+    return unless ( defined($fn_if2rt) );
+    return $fn_if2rt->(@_);
+}
+
+sub orig_if2rt {
+    return unless ( defined($fn_orig_if2rt) );
+    return $fn_orig_if2rt->(@_);
+}
+
+sub get_intf_rd {
+    my $name = shift;
+    my $rd;
+    $rd = if2rt($name);
+    return defined($rd) ? $rd : '';
+}
+
+sub get_intf_orig_rd {
+    my $name = shift;
+    my $rd   = orig_if2rt($name);
+    return defined($rd) ? $rd : '';
+}
+
+# returns an interface map give one of the get_(orig_|effective_|)interfaces
+# Internal function.
+sub map_interfaces_filtered {
+    my ( $a, $flt ) = @_;
+    my %r;
+
+    if ( defined($flt) ) {
+        %r = map { ( $flt->($_) ) ? ( $_->{name} => $_ ) : () } @$a;
+    } else {
+        %r = map { ( $_->{name} => $_ ) } @$a;
+    }
+    return \%r;
+}
+
+sub map_vrf_interfaces {
+    return unless defined($in_rt_filter);
+    my @iflist = Vyatta::Interface::get_interfaces();
+    return map_interfaces_filtered( \@iflist, $in_rt_filter );
+}
+
+sub map_orig_vrf_interfaces {
+    return unless defined($in_orig_rt_filter);
+    my @iflist = Vyatta::Interface::get_original_interfaces();
+    return map_interfaces_filtered( \@iflist, $in_orig_rt_filter );
+}
+
+sub delta_interfaces_vrf {
+    my ( $cur, $old ) = @_;
+    foreach my $k ( keys %$old ) {
+        my $o_intf = $old->{$k};
+        unless ( exists( $cur->{$k} ) ) {
+            $cur->{$k} = $o_intf;
+            next;
+        }
+        my $intf = $cur->{$k};
+        my $ord  = orig_if2rt( $intf->{name} );
+        my $rd   = if2rt( $intf->{name} );
+
+        # include in delta if they are different.
+        next if ( defined($rd) xor defined($ord) );
+        next if ( defined($rd) and ( $rd ne $ord ) );
+
+        delete $cur->{$k};
+    }
+    return $cur;
+}
+
+# Here we only need to apply a very specific
+# set of configs.
+sub delta_interfaces_vrf_commit {
+    my $cur = shift;
+    my $old = shift;
+    dbg_dump( "Current Interfaces: ", $cur );
+    dbg_dump( "Orig Interfaces: ",    $old );
+    return delta_interfaces_vrf( $cur, $old );
+}
+
+sub remove_orig_address {
+    my $intf  = shift;
+    my @addrs = Vyatta::Interface::get_orig_interface_addrs($intf);
+    for my $a (@addrs) {
+        system( '/opt/vyatta/sbin/vyatta-address', 'delete', $intf->{name},
+            $a );
+    }
+    return scalar(@addrs);
+}
+
+sub restore_addresses {
+    my $intf  = shift;
+    my @addrs = Vyatta::Interface::get_interface_addrs($intf);
+    for my $a (@addrs) {
+        system( '/opt/vyatta/sbin/vyatta-address', 'add', $intf->{name}, $a );
+    }
+}
+
+# delete addresses and bring interface down.
+sub prepare_vrf_change {
+    my ($h) = @_;
+
+    my $cfg = Vyatta::Config->new();
+    for my $ifname ( keys %$h ) {
+        next unless ( -d "/sys/class/net/$ifname" );
+        my $v    = $h->{$ifname};
+        my $intf = Vyatta::Interface->new($ifname);
+        my $rd   = get_intf_rd($ifname);
+        next if ( !defined($rd) || ( $intf->vrf() eq $rd ) );
+
+        # This interface's vrf needs to change. Update interface with
+        # required info needed to complete vrf change.
+        $v->{'vrf'}        = $rd;
+        $v->{'up'}         = $intf->up();
+        $v->{'orig_addrs'} = remove_orig_address($v);
+        dbg(    "prepare: intf:"
+              . $v->{name} . " vrf:"
+              . $v->{vrf}
+              . " old vrf: "
+              . $intf->vrf() );
+    }
+}
+
+# change if, bring interface up if it was brought down.
+sub complete_vrf_change {
+    my ($h) = @_;
+
+    my $cfg = Vyatta::Config->new();
+    for my $ifname ( keys %$h ) {
+        my $cfg_if = $h->{$ifname};
+
+        # skip if not changed by prepare
+        next
+          unless ( exists( $cfg_if->{vrf} )
+            && ( -d "/sys/class/net/$ifname" ) );
+
+        update_interface_vrf( $ifname, $cfg_if->{vrf}, $cfg_if->{up} );
+        if ( exists( $cfg_if->{'orig_addrs'} ) ) {
+            restore_addresses($cfg_if);
+        }
+    }
+}
+
+#
+# Skip deleted and added interfaces.
+#
+sub vrf_bind_delta {
+    my $delta =
+      delta_interfaces_vrf_commit( $cur_vrf_interfaces_map,
+        $orig_vrf_interfaces_map );
+    dbg_dump( "Interface Routing Instance Delta: ", $delta );
+    prepare_vrf_change($delta);
+    complete_vrf_change($delta);
+}
+
+sub verify_interfaces {
+    my $msg = "";
+
+    while ( my ( $interface, $instance ) = each %{$intf_to_rt_inst_conf_map} ) {
+        $msg .= sprintf( "  %-20s (%s)\n", $interface, $instance )
+          unless %{$cur_vrf_interfaces_map}{$interface};
+    }
+
+    if ( $msg ne "" ) {
+        print(
+"[routing routing-instance]\nWarning: bound interfaces not present in the configuration:\n$msg\n"
+        );
+    }
+}
+
+sub usage {
+    die "Usage : $0 --all [ --verify ] | --dev = interface";
+}
+
+my ( $dev, $all, $verify );
+GetOptions( 'dev=s' => \$dev, 'all' => \$all, 'verify' => \$verify ) or usage();
+if ($all) {
+    init_vrf_functions();
+    $cur_vrf_interfaces_map  = map_vrf_interfaces();
+    $orig_vrf_interfaces_map = map_orig_vrf_interfaces();
+
+    verify_interfaces() if ($verify);
+    vrf_bind_delta();
+} elsif ($dev) {
+    vrf_bind_one($dev);
+} else {
+    usage();
+}
+exit 0;

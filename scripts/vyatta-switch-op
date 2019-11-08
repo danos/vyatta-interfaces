@@ -1,0 +1,246 @@
+#! /usr/bin/perl
+# Copyright (c) 2018-2019, AT&T Intellectual Property. All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+use strict;
+use warnings;
+
+use lib '/opt/vyatta/share/perl5/';
+use List::Util qw/reduce/;
+use Getopt::Long;
+use Vyatta::MAC;
+use Vyatta::Configd;
+use Vyatta::Config;
+use Vyatta::Dataplane;
+use Vyatta::Bridge qw(show_bridge port_name2no);
+use Vyatta::FDB qw(fdb_collect_merged);
+
+my ( $action, $opt_switch, $opt_port, $opt_mac_addr, $opt_vlan );
+
+sub usage {
+    printf "Usage for vyatta-switch-op\n";
+    printf "  --action=show-switch [--switch=<switch>]\n";
+    printf "  --action=show-vlans [--switch=<switch>]\n";
+    printf
+"  --action=show-macs --switch=<switch> [--port=<port>] [--mac=<mac>] [--vlan=<vlan-id>]\n";
+    printf "  --action=show-vlan-stats --switch<switch> [ --vlan=<vlan-id>]\n";
+    printf "  --action=clear-vlan-stats --switch<switch> [ --vlan=<vlan-id>]\n";
+    exit 1;
+}
+
+GetOptions(
+    'action=s' => \$action,
+    'switch=s' => \$opt_switch,
+    'port=s'   => \$opt_port,
+    'mac=s'    => \$opt_mac_addr,
+    'vlan=s'   => \$opt_vlan,
+) or usage();
+
+if ( $action and $action eq 'show-switch' ) {
+    action_show_switch($opt_switch);
+} elsif ( $action and $action eq 'show-macs' ) {
+    action_show_macs( $opt_switch, $opt_port, $opt_mac_addr, $opt_vlan );
+} elsif ( $action and $action eq 'show-vlan-stats' ) {
+    action_show_vlan_stats( $opt_switch, $opt_vlan );
+} elsif ( $action and $action eq 'clear-vlan-stats' ) {
+    action_clear_vlan_stats( $opt_switch, $opt_vlan );
+} elsif ( $action and $action eq 'show-vlans' ) {
+    action_show_vlans($opt_switch);
+} else {
+    usage();
+}
+
+exit 0;
+
+sub action_show_vlans {
+    my ($switch_name) = @_;
+
+    my $client = Vyatta::Configd::Client->new();
+    my $tree   = $client->tree_get_full_hash('interfaces switch-state');
+    my $format = "%-12s %-10s %-10s %s\n";
+
+    for my $switch ( @{ $tree->{'switch-state'}->{'switches'} } ) {
+        my $sw_name = $switch->{'bridge-name'};
+
+        next if $switch_name and $sw_name ne $switch_name;
+
+        printf( $format, "Switch", "Vlan", "Interface", "Flags" );
+        printf "=================================================\n";
+
+        next unless $switch->{'interfaces'};
+
+        sub append_vlan_record {
+            my ( $out, $record ) = @_;
+            push @{ $out->{ $record->{'vlan-id'} } }, $record;
+            return $out;
+        }
+
+        sub make_record {
+            my ( $intf, $vlan ) = @_;
+            return {
+                'vlan-id' => $vlan->{'vlan-id'},
+                port_name => $intf->{'port-name'},
+                pvid      => $vlan->{'primary-vlan-id'},
+                untagged  => $vlan->{'egress-untagged'},
+            };
+        }
+
+        my $vlans = reduce { append_vlan_record $a, $b }{}, map {
+            my $intf = $_;
+            map { make_record $intf, $_ } @{ $_->{'vlans'} };
+        } @{ $switch->{'interfaces'} };
+
+        for my $vlan_id ( sort { $a <=> $b } keys %$vlans ) {
+            for my $record ( @{ $vlans->{$vlan_id} } ) {
+                my $pvid     = $record->{"pvid"}     ? "PVID"     : "";
+                my $untagged = $record->{"untagged"} ? "Untagged" : "";
+                printf( $format,
+                    $sw_name, $vlan_id,
+                    $record->{"port_name"},
+                    "$pvid $untagged" );
+                $sw_name = "";
+                $vlan_id = "";
+            }
+        }
+    }
+}
+
+sub action_show_switch {
+    my ($switch_name) = @_;
+
+    show_bridge( $switch_name, 1 );
+}
+
+#
+# Check if MAC is valid.  If it is, then return the MAC address in IEEE
+# format (52:54:00:00:01:02), else return undef.
+#
+sub validate_mac {
+    my ( $mac_addr, $verbose ) = @_;
+
+    if ( !defined $mac_addr ) {
+        return;
+    }
+
+    my $mac =
+      Vyatta::MAC->new( 'mac' => $mac_addr, 'die' => 0, 'verbose' => 0 );
+    my $error = $mac->get_error();
+    if ($error) {
+        if ($verbose) {
+            printf("$error");
+        }
+        return;
+    }
+    return lc( $mac->as_IEEE() );
+}
+
+#
+# Permanent or static entries are aged from when they are created.
+# Don't show this since it is potentially confusing.
+#
+sub age {
+    my ($entry) = @_;
+
+    return '-'
+      if $entry->{'state'} eq 'permanent'
+      or $entry->{'state'} eq 'static';
+    return $entry->{updated};
+}
+
+sub action_show_macs {
+    my ( $switch_name, $port_name, $mac_addr, $vlan ) = @_;
+
+    die "required switch name is missing\n" unless defined($switch_name);
+
+    my %tbl_display = (
+        'dataplane'  => 'SW',
+        'hardware'   => 'HW',
+        'controller' => 'K',
+    );
+
+    if ($mac_addr) {
+        $mac_addr = validate_mac( $mac_addr, 1 );
+        return if not $mac_addr;
+    }
+
+    my $fdb = fdb_collect_merged( $switch_name, $mac_addr, $vlan );
+
+    printf
+"Interface (port)   MAC Address             VLAN  State       Age  Tables\n";
+
+    foreach my $pname ( sort( keys %{$fdb} ) ) {
+        next if $pname eq $switch_name;
+        next if $port_name and $pname ne $port_name;
+
+        my $port = sprintf "%s (%d)", $pname, port_name2no($pname);
+
+        foreach my $entry ( @{ $fdb->{$pname} } ) {
+            my $vlanid = $entry->{'vlan-id'};
+            next if not defined($vlanid) or $vlanid == 0;
+
+            printf "%-18s ", $port;
+            printf "%-23s ", $entry->{'mac'};
+            printf "%-5d ",  $entry->{'vlan-id'};
+            printf "%-11s ", $entry->{'state'};
+            printf "%-4s ",  age($entry);
+            while ( my ( $idx, $elem ) = each @{ $entry->{'table'} } ) {
+                print $tbl_display{$elem};
+                print "/" if $idx != $#{ $entry->{'table'} };
+            }
+            print "\n";
+        }
+    }
+}
+
+sub action_show_vlan_stats {
+    my ( $opt_switch, $opt_vlan ) = @_;
+
+    if ( !( $opt_switch =~ /^sw[0-9]+$/ ) ) {
+        print "Command only supported on switch interfaces of form swN\n";
+        return;
+    }
+
+    if ( !defined($opt_vlan) ) {
+        $opt_vlan = "";
+    }
+
+    my $client = Vyatta::Configd::Client->new();
+    my $tree   = $client->tree_get_full_hash('interfaces switch-state');
+
+    printf
+"               Bytes       Packets     Ucast Pkts    NUcast Pkts     Drops     Errors\n";
+    for my $switch ( @{ $tree->{'switch-state'}->{'switches'} } ) {
+        next if ( $switch->{'bridge-name'} ne $opt_switch );
+
+        foreach my $value ( @{ $switch->{'vlan-statistics'} } ) {
+            next if ( $opt_vlan ne "" && $value->{'vlan-id'} ne $opt_vlan );
+
+            printf "Vlan %d\n", $value->{'vlan-id'};
+            printf "  RX:     %10d   %10d   %10d   %10d   %10d   %10d\n",
+              $value->{'rx-bytes'}, $value->{'rx-packets'},
+              $value->{'rx-unicast-packets'},
+              $value->{'rx-non-unicast-packets'}, $value->{'rx-drops'},
+              $value->{'rx-errors'};
+            printf "  TX:     %10d   %10d   %10d   %10d   %10d   %10d\n",
+              $value->{'tx-bytes'}, $value->{'tx-packets'},
+              $value->{'tx-unicast-packets'},
+              $value->{'tx-non-unicast-packets'}, $value->{'tx-drops'},
+              $value->{'tx-errors'};
+        }
+    }
+}
+
+sub action_clear_vlan_stats {
+    my ( $opt_switch, $opt_vlan ) = @_;
+    my ( $dp_ids,     $dp_conns ) = Vyatta::Dataplane::setup_fabric_conns();
+
+    if ( !defined($opt_vlan) ) {
+        $opt_vlan = "";
+    }
+
+    my $response =
+      vplane_exec_cmd( "switch $opt_switch vlan clear stats $opt_vlan",
+        $dp_ids, $dp_conns, 1 );
+}

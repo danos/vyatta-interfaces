@@ -1,0 +1,13 @@
+[Unit]
+Description=Vyatta Platform Default
+Wants=system-configure.service
+Before=system-configure.service
+
+[Service]
+Type=oneshot
+Environment=PERL5LIB=/opt/vyatta/share/perl5
+ExecStart=/opt/vyatta/sbin/vyatta-platform-default
+RemainAfterExit=yes
+
+[Install]
+RequiredBy=system-configure.service

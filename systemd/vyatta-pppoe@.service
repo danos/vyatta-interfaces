@@ -1,0 +1,14 @@
+[Unit]
+Description=Vyatta PPPoE client wrapper
+Requires=vyatta-dataplane.service
+After=vyatta-dataplane.service
+BindsTo=vyatta-dataplane.service
+
+[Service]
+Type=simple
+EnvironmentFile=/run/pppoe/pppoe-%i.env
+StandardError=journal
+ExecStart=/usr/sbin/pppd nodetach call pppoe-${pppname}
+
+[Install]
+WantedBy=multi-user.target

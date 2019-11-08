@@ -1,0 +1,87 @@
+module vyatta-interfaces-vfp-unnumbered-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-interfaces-vfp-unnumbered:1";
+	prefix vyatta-interfaces-vfp-unnumbered-v1;
+
+	import vyatta-interfaces-v1 {
+		prefix if;
+	}
+	import vyatta-interfaces-vfp-v1 {
+		prefix if-vfp;
+	}
+	import vyatta-interfaces-dataplane-unnumbered-v1 {
+		prefix if-dp-unnumbered;
+	}
+	import configd-v1 {
+		prefix configd;
+	}
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+		 Postal: 208 S. Akard Street
+		         Dallas, TX 75202
+		         USA
+		 Web: www.att.com";
+
+	description
+		"Copyright (c) 2017, AT&T Intellectual Property.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or
+		 without modification, are permitted provided that the following
+		 conditions are met:
+
+		 1. Redistributions of source code must retain the above copyright
+			notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+			copyright notice, this list of conditions and the following
+			disclaimer in the documentation and/or other materials provided
+			with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+			contributors may be used to endorse or promote products derived
+			from this software without specific prior written permission.
+
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+
+		 YANG module for adding unnumbered support to a
+		 virtual feature point interface.";
+
+	revision 2017-11-03 {
+		description "Initial Revision";
+	}
+
+	augment /if:interfaces/if-vfp:virtual-feature-point/if-vfp:ip {
+		container unnumbered {
+			description "Enable unnumbered IP";
+			configd:help "Enable unnumbered IP";
+			configd:priority "330";
+			configd:validate "/opt/vyatta/share/tmplscripts/interfaces/dataplane/unnumbered/unnumbered-vrf-check $VAR(../../@) $VAR(./donor-interface/@@) $VAR(/routing/routing-instance/@@)";
+			configd:end "/opt/vyatta/sbin/vyatta-update-unnumbered.pl --dev=$VAR(../../@)";
+			uses if-dp-unnumbered:unnumbered-opts;
+		}
+	}
+
+	augment /if:interfaces/if-vfp:virtual-feature-point/if-vfp:ipv6 {
+		container unnumbered {
+			description "Enable unnumbered IPv6";
+			configd:help "Enable unnumbered IPv6";
+			configd:priority "330";
+			configd:validate "/opt/vyatta/share/tmplscripts/interfaces/dataplane/unnumbered/unnumbered-vrf-check $VAR(../../@) $VAR(./donor-interface/@@) $VAR(/routing/routing-instance/@@)";
+			configd:end "/opt/vyatta/sbin/vyatta-update-unnumbered.pl --dev=$VAR(../../@) --ipv6";
+			uses if-dp-unnumbered:unnumbered-opts-ipv6;
+		}
+	}
+}

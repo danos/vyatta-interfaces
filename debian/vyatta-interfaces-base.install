@@ -1,0 +1,11 @@
+opt/vyatta/bin/vyatta-show-interfaces.pl
+opt/vyatta/bin/vyatta-vxlan-op
+opt/vyatta/etc
+opt/vyatta/sbin/interface-address-check
+opt/vyatta/sbin/validate-interfaces.pl
+opt/vyatta/sbin/vyatta-address
+opt/vyatta/sbin/vyatta-interfaces.pl
+opt/vyatta/sbin/vyatta-interfaces-garp
+opt/vyatta/sbin/vyatta-intf-end
+opt/vyatta/sbin/vyatta-unnumbered-update-donor.pl
+opt/vyatta/sbin/vyatta-update-vifs
