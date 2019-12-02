@@ -176,6 +176,33 @@ sub gen_subport_names {
     }
 }
 
+sub get_other_hw_interfaces {
+    my $swport_map = shift;
+    my @bonding_intfs;
+    return unless eval 'use Vyatta::Config; 1';
+
+    my $client = Vyatta::Config->new();
+
+    @bonding_intfs = $client->listNodes("interfaces bonding");
+
+    return if !@bonding_intfs;
+
+    return
+      unless eval 'use Vyatta::Platform qw( is_supported_platform_feature ); 1';
+
+    return
+      if !is_supported_platform_feature( "bonding.hardware-members-only",
+        undef, undef );
+
+    foreach my $bonding_intf (@bonding_intfs) {
+
+        # Hard code bonding interfaces to switch 0, since in the case
+        # of the presence of multiple physical switches it isn't clear
+        # what behaviour we'd want in general.
+        $swport_map->{$bonding_intf} = 0;
+    }
+}
+
 # For efficiency, use get_hwcfg_map() on an already opened SWITCH_CONF file
 # if calling multiple times as this avoids unnecessary file operations.
 sub get_hwcfg {
@@ -199,6 +226,7 @@ sub get_hwcfg {
     }
     close($fh) if defined($fh);
     gen_subport_names( \%swport_map );
+    get_other_hw_interfaces( \%swport_map );
     return %swport_map;
 }
 
@@ -229,6 +257,7 @@ sub get_hwcfg_map {
         }
     }
     gen_subport_names( \%swport_map );
+    get_other_hw_interfaces( \%swport_map );
     return %swport_map;
 }
 
@@ -256,7 +285,9 @@ sub get_default_switchports {
     foreach my $swport ( keys %swports ) {
         my $cfg_str = "interfaces dataplane $swport";
         my $ifcfg   = $client->get($cfg_str);
-        next if ( grep /(bridge-group|switch-group|address)/, @{$ifcfg} );
+        next
+          if ( grep /(bridge-group|switch-group|address|bond-group)/,
+            @{$ifcfg} );
         next
           if (
             $client->node_exists(
