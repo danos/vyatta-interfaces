@@ -18,7 +18,7 @@ require Exporter;
 
 our @ISA = qw (Exporter);
 our @EXPORT_OK =
-  qw (check_interface_features check_security_features check_proxy_arp get_platform_feature_limits);
+  qw (check_interface_features check_security_features check_proxy_arp get_platform_feature_limits is_supported_platform_feature);
 
 Readonly my $PLATFORM_CONF      => '/run/dataplane/platform.conf';
 Readonly my $PLATFORM_HW        => '/opt/vyatta/etc/hardware-features';
@@ -319,6 +319,32 @@ sub check_interface_features {
     }
 }
 
+# For a given feature, check if it is platform-dependent and then if
+# so check that the platform advertises support for it
+sub is_supported_platform_feature {
+    my ( $feat, $hw_file, $conf_file ) = @_;
+    my ( $hw_fh, $conf_fh );
+    my $supported;
+
+    ( $hw_file, $hw_fh ) = get_cfg_file($PLATFORM_HW)
+      if !defined($hw_file);
+    ( $conf_file, $conf_fh ) = get_cfg_file($PLATFORM_CONF)
+      if !defined($conf_file);
+
+    my $plat_dep_feat = get_cfg_value( $hw_file, $HW_FEATURE_SECTION, $feat );
+    if ($plat_dep_feat) {
+        $supported = get_cfg_value( $conf_file, $HW_FEATURE_SECTION, $feat );
+        $supported = 0 if !defined($supported);
+    } else {
+        $supported = 1;
+    }
+
+    close($hw_fh)   if defined($hw_fh);
+    close($conf_fh) if defined($conf_fh);
+
+    return $supported;
+}
+
 #
 # For the given config as a string of words check if it is one that is in the
 # set of features that are supported in some Hardware platform. If it is in there
@@ -336,17 +362,14 @@ sub check_platform_non_intf_features {
     my $feat_path = $feat;
     $feat =~ s/ /./g;
 
-    my $hw_val = get_cfg_value( $hw_file, $HW_FEATURE_SECTION, $feat );
-    if ($hw_val) {
-
-        my $plat_val = get_cfg_value( $conf_file, $HW_FEATURE_SECTION, $feat );
-        if ( !defined($plat_val) || $plat_val != 1 ) {
-            push(
-                @{$allmsg},
-                ( "[$feat_path]", "Not supported on this platform\n" )
-            );
-            return 1;
-        }
+    my $supported =
+      is_supported_platform_feature( $feat, $hw_file, $conf_file );
+    if ( !$supported ) {
+        push(
+            @{$allmsg},
+            ( "[$feat_path]", "Not supported on this platform\n" )
+        );
+        return 1;
     }
     return 0;
 }
