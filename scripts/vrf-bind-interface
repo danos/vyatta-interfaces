@@ -4,7 +4,7 @@
 # Description: Modules for VRF related Interface config.
 #
 # **** License ****
-# Copyright (c) 2018, AT&T Intellectual Property. All rights reserved.
+# Copyright (c) 2018-2020, AT&T Intellectual Property. All rights reserved.
 #
 # Copyright (c) 2016 by Brocade Communications Systems, Inc.
 # All rights reserved.
@@ -163,6 +163,28 @@ sub restore_addresses {
     }
 }
 
+sub notify_ipsec_prepare {
+    my ( $ifname, $intf ) = @_;
+    return unless ( $intf->type() eq 'virtual-feature-point' );
+
+    require Vyatta::VPN::Config;
+    Vyatta::VPN::Config->import(
+        qw(vpn_vrf_change_prepare vpn_vrf_change_complete));
+
+    vpn_vrf_change_prepare($ifname);
+}
+
+sub notify_ipsec_complete {
+    my ( $ifname, $intf ) = @_;
+    return unless ( $intf->type() eq 'virtual-feature-point' );
+
+    require Vyatta::VPN::Config;
+    Vyatta::VPN::Config->import(
+        qw(vpn_vrf_change_prepare vpn_vrf_change_complete));
+
+    vpn_vrf_change_complete($ifname);
+}
+
 # delete addresses and bring interface down.
 sub prepare_vrf_change {
     my ($h) = @_;
@@ -174,6 +196,8 @@ sub prepare_vrf_change {
         my $intf = Vyatta::Interface->new($ifname);
         my $rd   = get_intf_rd($ifname);
         next if ( !defined($rd) || ( $intf->vrf() eq $rd ) );
+
+        notify_ipsec_prepare( $ifname, $intf );
 
         # This interface's vrf needs to change. Update interface with
         # required info needed to complete vrf change.
@@ -201,6 +225,8 @@ sub complete_vrf_change {
           unless ( exists( $cfg_if->{vrf} )
             && ( -d "/sys/class/net/$ifname" ) );
 
+        my $intf = Vyatta::Interface->new($ifname);
+        notify_ipsec_complete( $ifname, $intf );
         update_interface_vrf( $ifname, $cfg_if->{vrf}, $cfg_if->{up} );
         if ( exists( $cfg_if->{'orig_addrs'} ) ) {
             restore_addresses($cfg_if);
