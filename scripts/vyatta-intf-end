@@ -103,10 +103,12 @@ sub set_link_speed {
     );
 
     while ( my $name = shift ) {
-        my $intf   = new Vyatta::Interface($name);
-        my $cfg    = new Vyatta::Config( $intf->path() );
-        my $duplex = $cfg->returnValue('duplex') if $cfg->exists('duplex');
-        my $speed  = $cfg->returnValue('speed') if $cfg->exists('speed');
+        my $intf       = new Vyatta::Interface($name);
+        my $cfg        = new Vyatta::Config( $intf->path() );
+        my $duplex     = $cfg->returnValue('duplex') if $cfg->exists('duplex');
+        my $speed      = $cfg->returnValue('speed') if $cfg->exists('speed');
+        my $old_duplex = $cfg->returnOrigValue('duplex');
+        my $old_speed  = $cfg->returnOrigValue('speed');
 
         next unless -d "/sys/class/net/$name";
         next unless defined $speed;
@@ -117,6 +119,9 @@ sub set_link_speed {
         if ( defined $mbits ) {
             $duplex = $duplex_option{$duplex};
             next unless defined $duplex;
+            next
+              if $old_speed eq $speed
+              and $duplex_option{$old_duplex} eq $duplex;
             my $speedProto = SpeedConfig->new(
                 {
                     ifname        => $name,
