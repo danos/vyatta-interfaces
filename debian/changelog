@@ -1,3 +1,13 @@
+vyatta-interfaces (1.79) unstable; urgency=medium
+
+  [ Robert Shearman ]
+  * Platform.pm: add is_supported_platform_feature API
+  * SwitchConfig.pm: allow bonding interfaces to be hardware interfaces
+
+  [ Nachiketa Prachanda ]
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Thu, 02 Jan 2020 11:18:12 -0800
+
 vyatta-interfaces (1.78) unstable; urgency=medium
 
   * DANOS Master Import
