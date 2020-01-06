@@ -1,2 +1,5 @@
-help: Monitor interfaces
-run: bmon -U -b -r 10 -p  lo*,dp*,br*,bond*,tun*,vtun*,vti*,ppp*,lttp*
+# Note - This file is needed for backward compatibility with op-mode
+# commands under vyatta-op/templates. The help and command to execute
+# for the "monitor interfaces" command comes from
+# vyatta-op-monitor-interfaces-v1.yang.
+#

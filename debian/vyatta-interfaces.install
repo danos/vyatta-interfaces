@@ -8,7 +8,13 @@ opt/vyatta/share/tmplscripts
 opt/vyatta/share/vyatta-op/functions/tech-support.d/0310-vyatta-interfaces
 opt/vyatta/share/vyatta-op/functions/tech-support-brief.d/0310-vyatta-interfaces-brief
 opt/vyatta/share/vyatta-op/templates/clear
-opt/vyatta/share/vyatta-op/templates/monitor
+opt/vyatta/share/vyatta-op/templates/monitor/interfaces/bridge
+opt/vyatta/share/vyatta-op/templates/monitor/interfaces/erspan
+opt/vyatta/share/vyatta-op/templates/monitor/interfaces/loopback
+opt/vyatta/share/vyatta-op/templates/monitor/interfaces/switch
+opt/vyatta/share/vyatta-op/templates/monitor/interfaces/tunnel
+opt/vyatta/share/vyatta-op/templates/monitor/interfaces/virtual-feature-point
+opt/vyatta/share/vyatta-op/templates/monitor/interfaces/vti
 opt/vyatta/share/vyatta-op/templates/show/vxlan
 scripts/netplug/spathintf etc/netplug/linkup.d
 platform/vyatta-interfaces-tunnel.platform /lib/vyatta-platform/platforms

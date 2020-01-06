@@ -413,3 +413,11 @@ Provides: python3-vyatta-dscp,
 Depends: ${misc:Depends}, ${python3:Depends}
 Description: Vyatta python3 modules for interfaces.
  Library of python3 modules for interfaces.
+
+Package: vyatta-op-monitor-interfaces-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}, vyatta-interfaces-base
+Breaks: vyatta-interfaces (<< 1.79)
+Replaces: vyatta-interfaces (<< 1.79)
+Description: vyatta-op-monitor-interfaces-v1 module
+ Operational mode integration for monitoring interfaces
