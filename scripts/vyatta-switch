@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2017-2019, AT&T Intellectual Property.
+# Copyright (c) 2017-2020, AT&T Intellectual Property.
 # All rights reserved.
 # Copyright (c) 2016-2017 Brocade Communications Systems, Inc.
 # All rights reserved.
@@ -465,6 +465,24 @@ sub is_interface_enslaved {
     return 0;
 }
 
+sub is_interface_switchport_attr_set {
+    my $name = shift;
+
+    return 1 if ( -f "/run/vyatta/swport.$name.cookie" );
+    return 0;
+}
+
+sub note_interface_switchport_attr_set {
+    my $name = shift;
+
+    open my $file, ">", "/run/vyatta/swport.$name.cookie"
+      or die "Could not write to switchport cookie file for interface $name";
+
+    # no contents, its existence is enough
+    close $file;
+    return 0;
+}
+
 sub get_softswitch_name {
     my ( $client, $switch_id ) = @_;
     my $cfg_str  = "interfaces switch";
@@ -489,7 +507,7 @@ my %defaulted_swports;
 # put specified/all suitable interfaces into the default state
 #
 sub set_default_state {
-    my $platf_type = shift;
+    my ( $platf_type, $def_platf_type ) = @_;
 
     my %swport_map = get_hwcfg();
     my $cmd;
@@ -512,7 +530,22 @@ sub set_default_state {
                 system("logger Isolating interface $swport\n");
                 my $cur_sw_name = get_current_softswitch_name($swport);
                 delete_interface( $cur_sw_name, $swport );
-                update_port_attr( $swport, "hw-switching", "disable", 'SET' );
+                update_port_attr( $swport, "hw-switching", "disable", 'SET' )
+                  if $platf_type ne $def_platf_type;
+                note_interface_switchport_attr_set($swport);
+            } elsif ( !is_interface_switchport_attr_set($swport) ) {
+
+                # Assume the default platform type is the one that can
+                # do hardware switching, so if the default is router
+                # then we should set hw-switching enabled.
+                if ( $platf_type eq $def_platf_type ) {
+                    update_port_attr( $swport, "hw-switching", "enable",
+                        'SET' );
+                } else {
+                    update_port_attr( $swport, "hw-switching", "disable",
+                        'SET' );
+                }
+                note_interface_switchport_attr_set($swport);
             }
         } elsif ( $platf_type eq 'switch' ) {
             if ( !is_interface_enslaved($swport) ) {
@@ -525,6 +558,7 @@ sub set_default_state {
                 system("logger Enslaving interface $swport to $sw_name\n");
                 enslave_interface( $sw_name, $swport );
                 update_port_attr( $swport, "hw-switching", "enable", 'SET' );
+                note_interface_switchport_attr_set($swport);
                 if (
                     !$client->node_exists(
                         $Vyatta::Configd::Client::AUTO,
@@ -723,9 +757,7 @@ sub unlock {
     flock( $file, LOCK_UN );
 }
 
-sub set_default_state_and_update {
-    lock();
-
+sub get_platform_type_and_default {
     my $def_platf_type = get_cfg( 'platform-type', 1 );
     die "Default platform type not found"
       unless defined($def_platf_type) && $def_platf_type ne "";
@@ -735,8 +767,26 @@ sub set_default_state_and_update {
         $platf_type = $def_platf_type;
     }
 
-    set_default_state($platf_type);
+    return ( $platf_type, $def_platf_type );
+}
+
+sub set_default_state_and_update {
+    lock();
+
+    my ( $platf_type, $def_platf_type ) = get_platform_type_and_default();
+
+    set_default_state( $platf_type, $def_platf_type );
     update_interfaces($platf_type);
+
+    unlock();
+}
+
+sub set_default_state_cmd {
+    lock();
+
+    my ( $platf_type, $def_platf_type ) = get_platform_type_and_default();
+    set_default_state( $platf_type, $def_platf_type );
+
     unlock();
 }
 
@@ -746,7 +796,7 @@ my %actions = (
     "enslave-interface"            => \&enslave_interface_cmd,
     "remove-interface"             => \&delete_interface_cmd,
     "gen-hwcfg"                    => \&gen_hwcfg,
-    "set-default-state"            => \&set_default_state,
+    "set-default-state"            => \&set_default_state_cmd,
     "update-vlans"                 => \&update_vlans,
     "set-default-state-and-update" => \&set_default_state_and_update,
 );
