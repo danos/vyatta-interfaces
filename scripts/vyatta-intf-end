@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# Copyright (c) 2018-2019, AT&T Intellectual Property.
+# Copyright (c) 2018-2020, AT&T Intellectual Property.
 # All rights reserved.
 # Copyright (c) 2015 by Brocade Communications Systems, Inc.
 # All rights reserved.
@@ -120,7 +120,9 @@ sub set_link_speed {
             $duplex = $duplex_option{$duplex};
             next unless defined $duplex;
             next
-              if $old_speed eq $speed
+              if defined $old_speed
+              and $old_speed eq $speed
+              and defined $old_duplex
               and $duplex_option{$old_duplex} eq $duplex;
             my $speedProto = SpeedConfig->new(
                 {
