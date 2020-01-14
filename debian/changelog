@@ -1,3 +1,22 @@
+vyatta-interfaces (1.80) unstable; urgency=medium
+
+  [ Paul Atkins ]
+  * Add interfaces-switch yang deviations on siad platform
+
+  [ Mike Manning ]
+  * Link flap when adding IPv6 address
+
+  [ Frédéric Perrin ]
+  * Don't compare speed with old_speed when old_speed is undef
+
+  [ Robert Shearman ]
+  * vyatta-switch: set hw-switching enabled for router platforms
+    (Fixes: VRVDR-49515)
+
+  [ Nachiketa Prachanda ]
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Tue, 14 Jan 2020 10:56:58 -0800
+
 vyatta-interfaces (1.79) unstable; urgency=medium
 
   [ Robert Shearman ]
