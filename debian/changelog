@@ -1,3 +1,12 @@
+vyatta-interfaces (1.81) unstable; urgency=medium
+
+  [ Mark Gillott ]
+  * Add operational YANG for "monitor interfaces" command (Fixes: VRVDR-49553)
+
+  [ Nachiketa Prachanda ]
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Tue, 14 Jan 2020 11:01:26 -0800
+
 vyatta-interfaces (1.80) unstable; urgency=medium
 
   [ Paul Atkins ]
