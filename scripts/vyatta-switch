@@ -521,11 +521,32 @@ sub set_default_state {
         gen_default_switches();
     }
 
-    foreach my $swport (@def_swports) {
+    foreach my $swport ( keys %swport_map ) {
 
         next if ( !interface_exists($swport) );
 
-        if ( $platf_type eq 'router' ) {
+        if ( !defined( $defaulted_swports{$swport} ) ) {
+            next if is_interface_switchport_attr_set($swport);
+
+            # If an interface is a hardware one, but isn't defaulted
+            # then just set hardware switching state. This is
+            # necessary since there may not be another trigger to add
+            # this and the rest of the system may rely on this to
+            # determine whether or not to program hardware forwarding
+            # state
+            if (
+                $client->node_exists(
+                    $Vyatta::Configd::Client::AUTO,
+                    "interfaces dataplane $swport hardware-switching disable"
+                )
+              )
+            {
+                update_port_attr( $swport, "hw-switching", "disable", 'SET' );
+            } else {
+                update_port_attr( $swport, "hw-switching", "enable", 'SET' );
+            }
+            note_interface_switchport_attr_set($swport);
+        } elsif ( $platf_type eq 'router' ) {
             if ( is_interface_enslaved($swport) ) {
                 system("logger Isolating interface $swport\n");
                 my $cur_sw_name = get_current_softswitch_name($swport);
