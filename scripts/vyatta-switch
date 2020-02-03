@@ -465,6 +465,16 @@ sub is_interface_enslaved {
     return 0;
 }
 
+sub is_interface_master_set {
+    my $name = shift;
+
+    opendir( my $dh, "/sys/class/net/$name" ) || return 0;
+    my @m_ifs = grep { /^upper_/ } readdir($dh);
+    closedir($dh);
+    return 0 if !@m_ifs;
+    return 1;
+}
+
 sub is_interface_switchport_attr_set {
     my $name = shift;
 
@@ -569,7 +579,12 @@ sub set_default_state {
                 note_interface_switchport_attr_set($swport);
             }
         } elsif ( $platf_type eq 'switch' ) {
-            if ( !is_interface_enslaved($swport) ) {
+            # Make sure the intf isn't already enslaved to a switch or a
+            # a member of a LAG. This can happen when the bond-group
+            # config is removed from the port.  This is because the delete
+            # actions are run by the ifmgrd after this fn's evaluation which
+            # is carried out as part of the end actions.
+            if ( !is_interface_master_set($swport) ) {
                 my $switch = $swport_map{$swport};
                 my $sw_name = get_softswitch_name( $client, $switch );
                 #
