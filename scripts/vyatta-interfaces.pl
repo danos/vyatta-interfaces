@@ -53,7 +53,7 @@ sub main {
     my ($validate_dp_interface);
     my ( $validate_interface, @addrs, $conf_line );
     my ( $dev_mtu, $check_mtu, $action, $check_dev_mtu );
-    my ($subports);
+    my ( $subports, $reservedintf );
 
     GetOptions(
         "valid-addr-commit=s{,}" => \@addr_commit,
@@ -99,6 +99,7 @@ sub main {
         "action=s"               => \$action,
         "conf-line"              => \$conf_line,
         "breakout=s"             => \$subports,
+        "breakout-reserved=s"    => \$reservedintf,
 
         # Actions below this point are likely no longer used following
         # work to improve validation and commit times.  However, as it's
@@ -142,7 +143,8 @@ sub main {
     validate_dp_device( $dev, @addrs ) if ($validate_dp_interface);
     update_dev_mtu( $dev, $dev_mtu, $action ) if ($dev_mtu);
     validate_dev_mtu( $dev, $check_dev_mtu, $action ) if ($check_dev_mtu);
-    process_breakout( $action, $subports, $dev ) if defined($subports);
+    process_breakout( $action, $subports, $dev, $reservedintf )
+      if defined($subports);
 
     exit 0;
 }
@@ -164,6 +166,7 @@ Usage: $0 --dev=<interface> --check=<type>
        $0 --dev=<interface> --configured
        $0 --dev=<interface> --delete-description
        $0 --dev=<interface> --conf-line
+       $0 --dev=<interface> --breakout=<n> [--breakout-reserved=<interface>]
        $0 --show=<type>[,<type>[...]] --filter-out=<regexp> --includes=<nodes>
 EOF
     exit 1;
@@ -1270,7 +1273,7 @@ sub update_dev_mtu {
 }
 
 sub process_breakout {
-    my ( $action, $subports, $intf ) = @_;
+    my ( $action, $subports, $intf, $reservedintf ) = @_;
 
     return unless eval 'use Vyatta::VPlaned; 1';
     return unless eval 'use vyatta::proto::BreakoutConfig; 1';
@@ -1285,9 +1288,10 @@ sub process_breakout {
         {
             breakoutif => BreakoutConfig::BreakoutIfConfig->new(
                 {
-                    ifname      => $intf,
-                    action      => $action_type,
-                    numsubports => $subports,
+                    ifname         => $intf,
+                    action         => $action_type,
+                    numsubports    => $subports,
+                    reservedifname => $reservedintf,
                 }
             ),
         }

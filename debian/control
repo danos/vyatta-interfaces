@@ -43,6 +43,7 @@ Depends: bmon,
  vyatta-cfg (>= 0.105.3),
  vyatta-op (>= 1.0),
  vyatta-system (>= 1.6.1),
+ vyatta-dataplane-cfg-pb-vyatta:breakout-0,
  ${misc:Depends},
  ${perl:Depends},
  ${shlibs:Depends}
