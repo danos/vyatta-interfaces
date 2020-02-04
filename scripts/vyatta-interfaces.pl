@@ -1273,12 +1273,26 @@ sub process_breakout {
     my ( $action, $subports, $intf ) = @_;
 
     return unless eval 'use Vyatta::VPlaned; 1';
+    return unless eval 'use vyatta::proto::BreakoutConfig; 1';
 
     my $ctrl = new Vyatta::VPlaned;
+    my $action_type;
 
-    $ctrl->store(
-        "breakout $intf",
-        "breakout $action $intf $subports",
-        $intf, $action
+    $action_type = BreakoutConfig::Action::DELETE() if ( $action eq 'DELETE' );
+    $action_type = BreakoutConfig::Action::SET()    if ( $action eq 'SET' );
+
+    my $msg = BreakoutConfig->new(
+        {
+            breakoutif => BreakoutConfig::BreakoutIfConfig->new(
+                {
+                    ifname      => $intf,
+                    action      => $action_type,
+                    numsubports => $subports,
+                }
+            ),
+        }
     );
+
+    $ctrl->store_pb( "breakout $intf", $msg, "vyatta:breakout", $intf,
+        $action );
 }
