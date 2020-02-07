@@ -1,3 +1,16 @@
+vyatta-interfaces (1.82) unstable; urgency=medium
+
+  [ Robert Shearman ]
+  * vyatta-switch: always set hw-switching state for hardware interfaces
+    (Fixes: VRVDR-49830)
+
+  [ Mandeep Rohilla ]
+  * LAG: When bond-group config is removed avoid transient errors
+
+  [ Nachiketa Prachanda ]
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Fri, 07 Feb 2020 11:29:04 -0800
+
 vyatta-interfaces (1.81) unstable; urgency=medium
 
   [ Mark Gillott ]
