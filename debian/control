@@ -150,11 +150,12 @@ Replaces: vyatta-cfg-system (<< 1.6.0)
 Description: vyatta-interfaces-tunnel-v1 module
  Tunnel interface configuration
 
-Package: vyatta-interfaces-tunnel-deviations-siad-v1-yang
+Package: vyatta-interfaces-tunnel-deviations-broadcom-dpp-v1-yang
+Provides: vyatta-interfaces-tunnel-deviations-siad-v1-yang
 Architecture: all
 Depends: vyatta-interfaces, ${misc:Depends}, ${yang:Depends}
-Description: vyatta-interfaces-tunnel-deviations-siad-v1 module
- Tunnel interface configuration deviations on SIAD platform
+Description: vyatta-interfaces-tunnel-deviations-broadcom-dpp-v1 module
+ Tunnel interface configuration deviations on Broadcom DPP platforms
 
 Package: vyatta-interfaces-vti-v1-yang
 Architecture: all

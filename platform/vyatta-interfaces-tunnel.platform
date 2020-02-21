@@ -1,2 +1,4 @@
 [Platform ufi.s9500-30xs]
-Yang=vyatta-interfaces-tunnel-deviations-siad-v1.yang
+Yang=vyatta-interfaces-tunnel-deviations-broadcom-dpp-v1.yang
+[Platform accton.as5916-54xks]
+Yang=vyatta-interfaces-tunnel-deviations-broadcom-dpp-v1.yang
