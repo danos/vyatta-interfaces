@@ -1,3 +1,14 @@
+vyatta-interfaces (1.83) unstable; urgency=medium
+
+  [ Robert Shearman ]
+  * vyatta-interfaces.pl: convert breakout command to using protobufs
+    (Closes: VRVDR-49851)
+  * vyatta-interfaces.pl: add breakout-reserved option to the breakout command
+
+  [ Nachiketa Prachanda ]
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Thu, 27 Feb 2020 17:12:53 -0800
+
 vyatta-interfaces (1.82) unstable; urgency=medium
 
   [ Robert Shearman ]
