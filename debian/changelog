@@ -1,3 +1,13 @@
+vyatta-interfaces (1.84) unstable; urgency=medium
+
+  [ Thomas Kiely ]
+  * Notify IPsec before VRF change
+
+  [ Robert Shearman ]
+  * platform: apply restrictions to tunnel config to AS5916-54XKS platform
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Fri, 13 Mar 2020 15:40:27 -0700
+
 vyatta-interfaces (1.83) unstable; urgency=medium
 
   [ Robert Shearman ]
