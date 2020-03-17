@@ -77,10 +77,7 @@ sub walk_tree {
 # return 1 if config is not supported on this platform.
 #
 sub check_intf_config_files {
-    my (
-        $hw_file, $conf_file, $words,
-        $ifname,  $intf_type, $section,
-    ) = @_;
+    my ( $hw_file, $conf_file, $words, $ifname, $intf_type, $section, ) = @_;
     my $use_intf_type;
 
     # get value per interface type if not set for all interfaces.
@@ -150,6 +147,7 @@ sub check_platform_interface_feature {
     my $remove    = 3;
 
     if ( $intf_type eq "dataplane" or $intf_type eq "switch" ) {
+
         # Is this a vif command and will there be at least one word left?
         if ( defined $vif and $vif eq "vif" and scalar @words_arr > 5 ) {
             $intf_type = $intf_type . "_vif";
@@ -171,7 +169,10 @@ sub check_platform_interface_feature {
         if ( $val == 1 ) {
             push(
                 @{$allmsg},
-                ( "[$feat_path]", "Not supported on software interface $ifname on this platform\n" )
+                (
+                    "[$feat_path]",
+"Not supported on software interface $ifname on this platform\n"
+                )
             );
             return 1;
         }
@@ -198,17 +199,28 @@ sub check_platform_interface_feature {
       check_intf_config_files( $hw_file, $conf_file, $words,
         $ifname, $intf_type, $HW_INTERFACE_FEATURE_SECTION );
     if ( $val == 1 ) {
-        if ( check_intf_config_files( $hw_file, $conf_file, "hardware-switching",
-                                      $ifname, $intf_type,
-                                      $HW_INTERFACE_FEATURE_SECTION ) == 0 ) {
+        if (
+            check_intf_config_files(
+                $hw_file,             $conf_file,
+                "hardware-switching", $ifname,
+                $intf_type,           $HW_INTERFACE_FEATURE_SECTION
+            ) == 0
+          )
+        {
             push(
                 @{$allmsg},
-                ( "[$feat_path]", "Interface dataplane $ifname must have hardware-switching disabled\n" )
+                (
+                    "[$feat_path]",
+"Interface dataplane $ifname must have hardware-switching disabled\n"
+                )
             );
         } else {
             push(
                 @{$allmsg},
-                ( "[$feat_path]", "Not supported on $ifname on this platform\n" )
+                (
+                    "[$feat_path]",
+                    "Not supported on $ifname on this platform\n"
+                )
             );
         }
     }
