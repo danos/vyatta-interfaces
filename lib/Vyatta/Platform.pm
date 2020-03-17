@@ -23,7 +23,11 @@ our @EXPORT_OK =
 Readonly my $PLATFORM_CONF      => '/run/dataplane/platform.conf';
 Readonly my $PLATFORM_HW        => '/opt/vyatta/etc/hardware-features';
 Readonly my $HW_FEATURE_SECTION => 'hardware-features';
-Readonly my $HW_INTERFACE_FEATURE_SECTION  => 'hardware-interface-features';
+Readonly my $HW_INTERFACE_FEATURE_SECTION => 'hardware-interface-features';
+Readonly my $HW_INTERFACE_ROUTER_FEATURE_SECTION =>
+  'hardware-interface-router-features';
+Readonly my $HW_INTERFACE_SWITCH_FEATURE_SECTION =>
+  'hardware-interface-switch-features';
 Readonly my $SW_INTERFACE_FEATURE_SECTION  => 'software-interface-features';
 Readonly my $ALL_INTERFACE_FEATURE_SECTION => 'all-interface-features';
 
@@ -75,10 +79,15 @@ sub walk_tree {
 # Check if the config in $words is supported on some HW platforms.
 # If it is then check if it is supported on this platform.
 # return 1 if config is not supported on this platform.
-#
 sub check_intf_config_files {
-    my ( $hw_file, $conf_file, $words, $ifname, $intf_type, $section, ) = @_;
+    my ( $hw_file, $conf_file, $words, $ifname, $intf_type, $section,
+        $conf_section )
+      = @_;
     my $use_intf_type;
+
+    if ( !defined($conf_section) ) {
+        $conf_section = $section;
+    }
 
     # get value per interface type if not set for all interfaces.
     my $val = get_cfg_value( $hw_file, $section, $words );
@@ -95,11 +104,11 @@ sub check_intf_config_files {
 
     my $plat_val;
     if ( !defined $use_intf_type ) {
-        eval { $plat_val = get_cfg_value( $conf_file, $section, $words ); };
+        eval { $plat_val = get_cfg_value( $conf_file, $conf_section, $words ); };
     } else {
         eval {
             $plat_val =
-              get_cfg_value( $conf_file, $section, "$words.$intf_type" );
+              get_cfg_value( $conf_file, $conf_section, "$words.$intf_type" );
         };
     }
     if ( defined($plat_val) ) {
@@ -195,36 +204,63 @@ sub check_platform_interface_feature {
         return;
     }
 
-    $val =
-      check_intf_config_files( $hw_file, $conf_file, $words,
-        $ifname, $intf_type, $HW_INTERFACE_FEATURE_SECTION );
-    if ( $val == 1 ) {
-        if (
-            check_intf_config_files(
-                $hw_file,             $conf_file,
-                "hardware-switching", $ifname,
-                $intf_type,           $HW_INTERFACE_FEATURE_SECTION
-            ) == 0
-          )
-        {
-            push(
-                @{$allmsg},
-                (
-                    "[$feat_path]",
-"Interface dataplane $ifname must have hardware-switching disabled\n"
-                )
-            );
+    # Hardware Interface features occur in this section of the hw_file:
+    #
+    # [hardware-interface-features]
+    #   Applies on any hardware interface
+    #
+    # But additionally can appear in these 2 sections of the platform's
+    # conf_file.
+    #
+    # [hardware-interface-router-features]
+    #   Applies on hw interface if the platform type is router
+    #
+    # [hardware-interface-switch-features]
+    #   Applies on hw interface if the platform type is switch
+    #
+    my @sections = ($HW_INTERFACE_FEATURE_SECTION);
+
+    my $platf_type = get_platform_type();
+
+    if ( defined($platf_type) ) {
+        if ( $platf_type eq 'router' ) {
+            push @sections, $HW_INTERFACE_ROUTER_FEATURE_SECTION;
         } else {
-            push(
-                @{$allmsg},
-                (
-                    "[$feat_path]",
-                    "Not supported on $ifname on this platform\n"
-                )
-            );
+            push @sections, $HW_INTERFACE_SWITCH_FEATURE_SECTION;
         }
     }
 
+    foreach my $section (@sections) {
+        $val =
+          check_intf_config_files( $hw_file, $conf_file, $words,
+            $ifname, $intf_type, $HW_INTERFACE_FEATURE_SECTION, $section );
+
+        if ( $val == 0 ) {
+            return ($val);
+        }
+    }
+
+    if (
+        check_intf_config_files(
+            $hw_file,             $conf_file,
+            "hardware-switching", $ifname,
+            $intf_type,           $HW_INTERFACE_FEATURE_SECTION
+        ) == 0
+      )
+    {
+        push(
+            @{$allmsg},
+            (
+                "[$feat_path]",
+"Interface dataplane $ifname must have hardware-switching disabled\n"
+            )
+        );
+    } else {
+        push(
+            @{$allmsg},
+            ( "[$feat_path]", "Not supported on $ifname on this platform\n" )
+        );
+    }
     return ($val);
 }
 
