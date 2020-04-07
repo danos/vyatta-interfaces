@@ -66,6 +66,19 @@ sub update_nhrp_ipsec_triggers {
     }
 }
 
+sub update_ip_rule_on_tunnel_create {
+    my ( $tunnel, $old_encap, $new_encap ) = @_;
+
+    if ( defined($old_encap)
+        && index( $old_encap, "gre" ) == -1 )
+    {
+        system("ip rule del iif $tunnel lookup 230");
+    }
+    if ( index( $new_encap, "gre" ) == -1 ) {
+        system("ip rule add iif $tunnel lookup 230");
+    }
+}
+
 sub create_vxlan_interface {
     my ( $name, $encap, $vxl_id, $local, $remote, $grp_addr, $t_vrf, $params )
       = @_;
@@ -102,13 +115,38 @@ sub create_or_modify_tunnel {
 
     my $tunnel_exists = undef;
     my (
-        $tunnel,              $encap,     $local_addr,
-        $remote_ip,           $nhrp,      $address_transition,
-        $recreate_transition, $key_value, $intf,
-        $vxlan_id,            $t_vrf,     $grp_addr,
-        $params
+        $tunnel,             $old_encap,           $encap,
+        $local_addr,         $remote_ip,           $nhrp,
+        $address_transition, $recreate_transition, $key_value,
+        $intf,               $vxlan_id,            $pmtudisc_dis,
+        $ttl,                $tos,                 $t_vrf,
+        $grp_addr,           $params
     ) = @_;
     my $tunnel_verb = 'add';
+
+    my $PMTUDISC = "";
+    my $TTL      = "";
+    my $TOS;
+    my $TYPE;
+    my $ARP = "";
+
+    # Not a VXLAN tunnel type
+    if ( index( $encap, "vxlan" ) != -1 ) {
+        if ( defined($pmtudisc_dis) ) {
+            $PMTUDISC = "nopmtudisc";
+        } else {
+            $PMTUDISC = "pmtudisc";
+        }
+    }
+    if ( ( $PMTUDISC ne "nopmtudisc" ) && !defined($ttl) ) {
+        $PMTUDISC = "";
+        $TTL      = "ttl 255";
+    }
+    if ( !defined($tos) ) {
+        $TOS = "tos inherit";
+    } else {
+        $TOS = "tos $tos";
+    }
 
     if ( -d "/sys/class/net/$tunnel" ) {
         if ($recreate_transition) {
@@ -122,6 +160,8 @@ sub create_or_modify_tunnel {
     }
 
     if ( $encap eq "gre-multipoint" ) {
+        $TYPE = "gre";
+        $ARP  = "arp on";
         if ( defined($key_value) ) {
             system(
 "ip link $tunnel_verb $tunnel type gre local $local_addr key $key_value"
@@ -131,7 +171,12 @@ sub create_or_modify_tunnel {
         }
         update_nhrp_ipsec_triggers( $nhrp, $tunnel,
             $local_addr, undef, $address_transition );
+        if ( $tunnel_verb eq "add" ) {
+            system("invoke-rc.d opennhrp start");
+            system("ip link set $tunnel $ARP");
+        }
     } elsif ( $encap eq "gre-bridge" ) {
+        $TYPE = "gretap";
         system(
 "ip link $tunnel_verb $tunnel type gretap local $local_addr remote $remote_ip"
         );
@@ -139,9 +184,11 @@ sub create_or_modify_tunnel {
         if ( defined($tunnel_exists) ) {
             system("ip link del $tunnel");
         }
+        $TYPE = "vxlan";
         create_vxlan_interface( $tunnel, $encap, $vxlan_id,
             $local_addr, $remote_ip, $grp_addr, $t_vrf, $params );
     } elsif ( $encap eq "ipip6" || $encap eq "ip6ip6" ) {
+        $TYPE = "ip6tnl";
         system(
 "ip link $tunnel_verb $tunnel type ip6tnl mode $encap local $local_addr remote $remote_ip"
         );
@@ -153,6 +200,7 @@ sub create_or_modify_tunnel {
             );
         }
     } else {
+        $TYPE = $encap;
         if ( defined($key_value) ) {
             system(
 "ip link $tunnel_verb $tunnel type $encap local $local_addr remote $remote_ip key $key_value"
@@ -172,11 +220,14 @@ sub create_or_modify_tunnel {
     if ( $encap eq "ip6gre" ) {
         add_interface_redirect( $tunnel, 1 );
     }
+    system("ip link set $tunnel type $TYPE $PMTUDISC $TTL $TOS");
+    update_ip_rule_on_tunnel_create( $tunnel, $old_encap, $encap );
 }
 
 sub parse_metafile_create_tunnel {
 
     my $metafile            = undef;
+    my $old_encap           = undef;
     my $encap               = undef;
     my $tunnel              = undef;
     my $remote_ip           = undef;
@@ -186,6 +237,9 @@ sub parse_metafile_create_tunnel {
     my $vxlan_id            = undef;
     my $address_transition  = 1;
     my $recreate_transition = undef;
+    my $pmtudisc_dis        = undef;
+    my $ttl                 = undef;
+    my $tos                 = undef;
     my ( $intf, $local_addr ) = @_;
 
     open( $metafile, '<', "/var/run/.$intf.tunnel_deferred.txt" )
@@ -194,8 +248,11 @@ sub parse_metafile_create_tunnel {
     if ( defined($metafile) ) {
         while (<$metafile>) {
             chomp;
-            ( $tunnel, $nhrp, $local_intf, $encap, $remote_ip, $key_value ) =
-              split(':');
+            (
+                $tunnel,       $nhrp,      $local_intf,
+                $encap,        $remote_ip, $key_value,
+                $pmtudisc_dis, $ttl,       $tos
+            ) = split(':');
 
             if (   defined($local_intf)
                 && defined($local_addr)
@@ -204,11 +261,13 @@ sub parse_metafile_create_tunnel {
                 && ( $local_intf eq $intf ) )
             {
                 create_or_modify_tunnel(
-                    $tunnel,              $encap,
-                    $local_addr,          $remote_ip,
-                    $nhrp,                $address_transition,
-                    $recreate_transition, $key_value,
-                    $intf,                $vxlan_id
+                    $tunnel,             $old_encap,
+                    $encap,              $local_addr,
+                    $remote_ip,          $nhrp,
+                    $address_transition, $recreate_transition,
+                    $key_value,          $intf,
+                    $vxlan_id,           $pmtudisc_dis,
+                    $ttl,                $tos
                 );
             } else {
                 print STDERR
@@ -327,6 +386,10 @@ sub create_tunnel_now_or_defer {
         $cfg->returnValue("$tunnel transport routing-instance") );
     my $old_t_vrf_name = def_or_empty_str(
         $cfg->returnOrigValue("$tunnel transport routing-instance") );
+    my $pmtudisc_dis = $cfg->returnValue("$tunnel path-mtu-discovery-disable");
+    my $ttl          = $cfg->returnValue("$tunnel parameters ip ttl");
+    my $tos          = $cfg->returnValue("$tunnel parameters ip tos");
+
     my $meta_file_exists = undef;
     my $outhandle        = undef;
     my %tunnel2metadata;
@@ -418,8 +481,11 @@ sub create_tunnel_now_or_defer {
         $outstring .= join(
             ":",
             grep ( $_,
-                ( $tunnel, $nhrp, $local_intf, $encap, $remote_ip, $key_value )
-            )
+                (
+                    $tunnel,       $nhrp,      $local_intf,
+                    $encap,        $remote_ip, $key_value,
+                    $pmtudisc_dis, $ttl,       $tos
+                ) )
         ) . "\n";
         print $outhandle $outstring;
         chmod( 755, $outhandle );
@@ -438,12 +504,14 @@ sub create_tunnel_now_or_defer {
        # if local tunnel address is known, parse meta-file and create tunnel now
         if ( defined($local_addr) && defined($transition) ) {
             create_or_modify_tunnel(
-                $tunnel,              $encap,
-                $local_addr,          $remote_ip,
-                $nhrp,                $address_transition,
-                $recreate_transition, $key_value,
-                $local_intf,          $vxlan_id,
-                $t_vrf_name,          $grp_addr,
+                $tunnel,             $old_encap,
+                $encap,              $local_addr,
+                $remote_ip,          $nhrp,
+                $address_transition, $recreate_transition,
+                $key_value,          $local_intf,
+                $vxlan_id,           $pmtudisc_dis,
+                $ttl,                $tos,
+                $t_vrf_name,         $grp_addr,
                 $params
             );
         } else {
@@ -458,12 +526,14 @@ sub create_tunnel_now_or_defer {
         if ( defined($local_addr) && defined($tunnel) && defined($encap) ) {
             if ( defined($transition) ) {
                 create_or_modify_tunnel(
-                    $tunnel,              $encap,
-                    $local_addr,          $remote_ip,
-                    $nhrp,                $address_transition,
-                    $recreate_transition, $key_value,
-                    $local_intf,          $vxlan_id,
-                    $t_vrf_name,          $grp_addr,
+                    $tunnel,             $old_encap,
+                    $encap,              $local_addr,
+                    $remote_ip,          $nhrp,
+                    $address_transition, $recreate_transition,
+                    $key_value,          $local_intf,
+                    $vxlan_id,           $pmtudisc_dis,
+                    $ttl,                $tos,
+                    $t_vrf_name,         $grp_addr,
                     $params
                 );
             }
