@@ -1,3 +1,10 @@
+vyatta-interfaces (1.84.1) unstable; urgency=medium
+
+  [ Mandeep Rohilla ]
+  * GRE: Tunnel parameters setting should be deferred
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Thu, 09 Apr 2020 10:12:54 -0700
+
 vyatta-interfaces (1.84) unstable; urgency=medium
 
   [ Thomas Kiely ]
