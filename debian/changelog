@@ -1,3 +1,15 @@
+vyatta-interfaces (1.85) unstable; urgency=medium
+
+  [ Brian Russell ]
+  * platform: perltidy
+  * platform: introduce type specific command blocking
+  * platform: refine policy commands
+
+  [ Mandeep Rohilla ]
+  * GRE: Tunnel parameters setting should be deferred
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Thu, 09 Apr 2020 10:11:01 -0700
+
 vyatta-interfaces (1.84) unstable; urgency=medium
 
   [ Thomas Kiely ]
