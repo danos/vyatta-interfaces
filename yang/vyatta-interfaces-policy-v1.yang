@@ -20,6 +20,9 @@ module vyatta-interfaces-policy-v1 {
 	import vyatta-interfaces-openvpn-v1 {
 		prefix interfaces-openvpn;
 	}
+	import vyatta-interfaces-pppoe-v1 {
+		prefix interfaces-pppoe;
+	}
 	import vyatta-interfaces-tunnel-v1 {
 		prefix interfaces-tunnel;
 	}
@@ -39,7 +42,7 @@ module vyatta-interfaces-policy-v1 {
 		 Web: www.att.com";
 
 	description
-		"Copyright (c) 2017 AT&T Intellectual Property
+		"Copyright (c) 2017-2020 AT&T Intellectual Property
 		 All rights reserved.
 
 		 Copyright (c) 2014-2017 by Brocade Communications Systems, Inc.
@@ -75,6 +78,10 @@ module vyatta-interfaces-policy-v1 {
 		 SPDX-License-Identifier: BSD-3-Clause
 
 		 The YANG module for vyatta-interfaces-policy-v1";
+
+	revision 2020-04-02 {
+		description "Add policy support for pppoe interfaces";
+	}
 
 	revision 2017-11-06 {
 		description "Add policy support for vfp interfaces to 
@@ -115,6 +122,10 @@ module vyatta-interfaces-policy-v1 {
 	}
 
 	augment /if:interfaces/interfaces-openvpn:openvpn {
+		uses policy:policy-binding;
+	}
+
+	augment /if:interfaces/interfaces-pppoe:pppoe {
 		uses policy:policy-binding;
 	}
 

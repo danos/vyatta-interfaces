@@ -21,7 +21,7 @@ module vyatta-interfaces-pppoe-v1 {
 			Web: www.att.com";
 
 	description
-		"Copyright (c) 2017-2018, AT&T Intellectual Property.
+		"Copyright (c) 2017-2020, AT&T Intellectual Property.
 		 All rights reserved.
 
 		 Redistribution and use in source and binary forms, with or
@@ -55,7 +55,11 @@ module vyatta-interfaces-pppoe-v1 {
 		
 		 Configuration nodes for PPPoE tunnels.
 		 RPC commands for setup or tear down of PPPoE tunnels.";
-	
+
+	revision 2020-04-14 {
+		description "Add ip to PPPoE interfaces";
+	}
+
 	revision 2018-08-03 {
 		description "Change call/hangup RPC scripts";
 	}
@@ -112,6 +116,12 @@ module vyatta-interfaces-pppoe-v1 {
 				units "seconds";
 				description "The idle timeout in seconds before the pppd client automatically disconnects.";
 				configd:help "Delay (in seconds) before disconnecting idle session.";
+			}
+			container ip {
+				configd:help "IPv4 parameters";
+			}
+			container ipv6 {
+				configd:help "IPv6 parameters";
 			}
 			leaf mtu {
 				type uint32 {
