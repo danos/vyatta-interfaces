@@ -1,3 +1,10 @@
+vyatta-interfaces (1.86) unstable; urgency=medium
+
+  [ Paul Carson ]
+  * Add policy and ip to PPPoE interfaces (Fixes: VRVDR-43273)
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Wed, 29 Apr 2020 12:04:43 -0700
+
 vyatta-interfaces (1.85) unstable; urgency=medium
 
   [ Brian Russell ]
