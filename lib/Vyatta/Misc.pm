@@ -38,6 +38,8 @@ our @EXPORT_OK = qw(getInterfacesIPAddresses getPortRuleString);
 
 use Vyatta::Config;
 use Vyatta::Interface;
+
+use IPC::Run3 qw(run3);
 use NetAddr::IP;
 use Socket;
 
@@ -145,13 +147,17 @@ sub getIP {
     my @args = ( VrfCmdPrefix($name) );
     push @args, qw(/bin/ip addr show);
     push @args, ( 'dev', $name ) if $name;
+    my @cmd_out;
+    my $cmd_err;
 
-    open my $ipcmd, '-|'
-      or exec @args
-      or die "ip addr command failed: $!";
+    run3 \@args, \undef, \@cmd_out, \$cmd_err;
 
-    <$ipcmd>;
-    while (<$ipcmd>) {
+    if ( $? != 0 ) {
+        $cmd_err = "" unless $cmd_err;
+        die "ip addr command failed: $cmd_err";
+    }
+
+    foreach (@cmd_out) {
         my ( $proto, $addr ) = split;
         next unless ( $proto =~ /inet/ );
         if ($type) {
@@ -168,7 +174,6 @@ sub getIP {
 
         push @addresses, $addr;
     }
-    close $ipcmd;
 
     return @addresses;
 }
