@@ -19,6 +19,7 @@ use Vyatta::RestoreIPv6Addr;
 use Vyatta::UnnumberedInterface;
 
 use vyatta::proto::SpeedConfig;
+use vyatta::proto::PauseConfig;
 
 sub bring_up_dhcp {
     my $intf = shift;
@@ -145,6 +146,58 @@ sub set_link_speed {
     }
 }
 
+sub process_pause {
+    my $ctrl = new Vyatta::VPlaned;
+    my $action_type;
+
+    my %pausevalue = (
+        'none' => PauseConfig::PauseValue::NONE,
+        'rx'   => PauseConfig::PauseValue::RX,
+        'tx'   => PauseConfig::PauseValue::TX,
+        'both' => PauseConfig::PauseValue::BOTH
+    );
+
+    while ( my $name = shift ) {
+        my $intf = new Vyatta::Interface($name);
+
+        next unless ( defined($intf) and $intf->configured );
+
+        my $cfg = new Vyatta::Config( $intf->path() );
+
+        my $old_pause_flow = $cfg->returnOrigValue('pause-frame');
+        my $pause_flow     = $cfg->returnValue('pause-frame');
+
+        next unless ( $pause_flow or $old_pause_flow );
+
+        next
+          if defined($pause_flow)
+          and defined($old_pause_flow)
+          and $pause_flow eq $old_pause_flow;
+
+        #Delete case, we are setting the default value i.e "both"
+        if ( defined($old_pause_flow) and not defined($pause_flow) ) {
+            $pause_flow  = 'both';
+            $action_type = 'DELETE';
+        } else {
+            $action_type = 'SET';
+        }
+
+        my $msg = PauseConfig->new(
+            {
+                pauseif => PauseConfig::PauseIfConfig->new(
+                    {
+                        ifname => $name,
+                        value  => $pausevalue{$pause_flow},
+                    }
+                ),
+            }
+        );
+        $ctrl->store_pb( "pause $name", $msg, "vyatta:pause", $name,
+            $action_type );
+    }
+}
+
 set_link_speed(@ARGV);
 bring_up_required_interfaces(@ARGV);
 update_unnumbered_donors(@ARGV);
+process_pause(@ARGV);
