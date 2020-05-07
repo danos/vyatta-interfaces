@@ -1,3 +1,9 @@
+vyatta-interfaces (1.84.3) unstable; urgency=medium
+
+  * lib: fix getIP error message
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Thu, 07 May 2020 10:46:13 -0700
+
 vyatta-interfaces (1.84.2) unstable; urgency=medium
 
   [ Paul Carson ]
