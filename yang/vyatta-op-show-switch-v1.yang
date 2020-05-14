@@ -21,7 +21,7 @@ module vyatta-op-show-switch-v1 {
 		 Web: www.att.com";
 
 	description
-		"Copyright (c) 2017-2018, AT&T Intellectual Property.
+		"Copyright (c) 2017-2020, AT&T Intellectual Property.
 		 All rights reserved.
 
 		 Redistribution and use in source and binary forms, with or
@@ -54,6 +54,10 @@ module vyatta-op-show-switch-v1 {
 		 SPDX-License-Identifier: BSD-3-Clause
 
 		Defines the top 'switch' level under 'show' for operational CLI";
+
+	revision 2020-05-14 {
+		description "Add per port per vlan MAC count option";
+	}
 
 	revision 2018-10-26 {
 		description "Add vlan under show switch";
@@ -97,6 +101,20 @@ module vyatta-op-show-switch-v1 {
 						opd:on-enter 'vyatta-switch-op --action=show-macs --switch="$3" --port="$6"';
 						opd:allowed 'vyatta-interfaces.pl --show all';
 						type types:interface-ifname;
+
+						opd:command vlan {
+							opd:help "Show VLAN information for specified vlan";
+
+							opd:argument vlan-id {
+								opd:help "VLAN number";
+								type types:vlan;
+
+								opd:command count {
+									opd:help "Show MAC count on specified port and vlan";
+									opd:on-enter "vyatta-switch-op --action=show-macs-count --switch=$3 --port=$6 --vlan=$8";
+								}
+						     }
+						 }
 					}
 
 					opd:option vlan {

@@ -423,3 +423,9 @@ Breaks: vyatta-interfaces (<< 1.79)
 Replaces: vyatta-interfaces (<< 1.79)
 Description: vyatta-op-monitor-interfaces-v1 module
  Operational mode integration for monitoring interfaces
+
+Package: vyatta-mac-limit-v1-yang
+Architecture: all
+Depends: ${misc:Depends}, ${yang:Depends}
+Description: vyatta-mac-limit-v1 module
+ MAC address limit configuration for interfaces
