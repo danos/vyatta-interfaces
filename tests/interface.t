@@ -30,6 +30,10 @@ my $debug = 0;
 my $mock = Test::MockObject->new();
 $mock->fake_module( 'Vyatta::Config' );
 $mock->fake_new('Vyatta::Config');
+$mock->fake_module( 'Vyatta::Configd' );
+$mock->fake_new('Vyatta::Config::Client',
+  call_rpc_hash => sub {return {"receive" => "dp0p1s1", "group" => "1"}}
+);
 $mock->fake_module( 'Vyatta::Misc',
   get_sysfs_value => sub { return "1" }
 );
