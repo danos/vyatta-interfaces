@@ -1,4 +1,0 @@
-help: Monitor detailed filtered traffic for the specified vti interface
-allowed: echo -e '<display-filter>'
-run: ${vyatta_bindir}/vyatta-tshark.pl --intf $4 --detail --filter "${@:8}"
-privileged: false

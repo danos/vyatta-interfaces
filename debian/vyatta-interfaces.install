@@ -14,7 +14,6 @@ opt/vyatta/share/vyatta-op/templates/monitor/interfaces/loopback
 opt/vyatta/share/vyatta-op/templates/monitor/interfaces/switch
 opt/vyatta/share/vyatta-op/templates/monitor/interfaces/tunnel
 opt/vyatta/share/vyatta-op/templates/monitor/interfaces/virtual-feature-point
-opt/vyatta/share/vyatta-op/templates/monitor/interfaces/vti
 opt/vyatta/share/vyatta-op/templates/show/vxlan
 scripts/netplug/spathintf etc/netplug/linkup.d
 platform/vyatta-interfaces-tunnel.platform /lib/vyatta-platform/platforms

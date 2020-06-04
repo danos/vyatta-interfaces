@@ -157,14 +157,6 @@ Depends: vyatta-interfaces, ${misc:Depends}, ${yang:Depends}
 Description: vyatta-interfaces-tunnel-deviations-broadcom-dpp-v1 module
  Tunnel interface configuration deviations on Broadcom DPP platforms
 
-Package: vyatta-interfaces-vti-v1-yang
-Architecture: all
-Depends: vyatta-interfaces, ${misc:Depends}, ${yang:Depends}
-Breaks: vyatta-cfg-system (<< 1.6.0)
-Replaces: vyatta-cfg-system (<< 1.6.0)
-Description: vyatta-interfaces-vti-v1 module
- VTI interface configuration
-
 Package: vyatta-interfaces-pppoe
 Architecture: all
 Depends: vyatta-interfaces,
@@ -344,12 +336,6 @@ Architecture: all
 Depends: ${misc:Depends}, ${yang:Depends}, vyatta-interfaces-base
 Description: vyatta-op-show-interfaces-tunnel-v1 module
  Operational mode integration for viewing tunnel interface configuration
-
-Package: vyatta-op-show-interfaces-vti-v1-yang
-Architecture: all
-Depends: ${misc:Depends}, ${yang:Depends}, vyatta-interfaces-base
-Description: vyatta-op-show-interfaces-vti-v1 module
- Operational mode integration for viewing virtual interface configuration
 
 Package: vyatta-op-show-switch-v1-yang
 Architecture: all
