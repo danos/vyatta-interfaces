@@ -8,4 +8,10 @@ if (system("/opt/vyatta/bin/vyatta-platform-util --query-is-switch") == 0) {
 	set_cfg('platform-type', 'router', 1);
 }
 
+if (system("/opt/vyatta/bin/vyatta-platform-util --query-is-hw-router-intf-supported") == 0) {
+	set_cfg('HW-Router-Intf', 'yes', 1);
+} else {
+	set_cfg('HW-Router-Intf', 'no', 1);
+}
+
 1;

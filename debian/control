@@ -252,6 +252,7 @@ Depends: libvyatta-bridge-perl,
  vyatta-platform-util,
  vyatta-service-bridge (>= 2.4),
  vyatta-policy-qos-vci,
+ plat-util-hw-router-intf-cap,
  ${misc:Depends}, ${yang:Depends}
 Description: vyatta-interfaces-switch-v1 module
  VLAN aware bridging interface configuration
