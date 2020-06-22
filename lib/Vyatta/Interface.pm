@@ -156,7 +156,7 @@ sub new {
         catch {
             system("logger Failed to find transmit interface for $name\n");
             return;
-        }
+        };
         $dev  = $transmit_intf->{"receive"};
         $vrid = $transmit_intf->{"group"};
         if ( $vrid eq 0 ) {
