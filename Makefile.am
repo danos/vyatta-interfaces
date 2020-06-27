@@ -10,11 +10,14 @@ lib_python_interfacesdir = /usr/lib/python3/dist-packages/vyatta/interfaces
 lib_python_switchconfigdir = /usr/lib/python3/dist-packages/vyatta
 lib_python_dscpdir = /usr/lib/python3/dist-packages/vyatta
 
-bin_SCRIPTS = scripts/vyatta-show-interfaces.pl
+bin_SCRIPTS = scripts/ifstats-op-mode
+bin_SCRIPTS += scripts/vyatta-show-interfaces.pl
 bin_SCRIPTS += scripts/vyatta-vxlan-op
 bin_SCRIPTS += scripts/vyatta-switch-op
 bin_SCRIPTS += scripts/vyatta-switch-stp-op
-sbin_SCRIPTS = scripts/vyatta-interfaces.pl
+bin_SCRIPTS += scripts/yang-getop-interface
+sbin_SCRIPTS = scripts/set-rpf-check
+sbin_SCRIPTS += scripts/vyatta-interfaces.pl
 sbin_SCRIPTS += scripts/vyatta-interfaces-garp
 sbin_SCRIPTS += scripts/validate-interfaces.pl
 sbin_SCRIPTS += scripts/vyatta-intf-end

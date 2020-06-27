@@ -1,0 +1,609 @@
+module vyatta-interfaces-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-interfaces:1";
+	prefix vyatta-if-v1;
+
+	import configd-v1 { prefix configd; }
+	import vyatta-types-v1 { prefix types; }
+	import vyatta-system-network-v1 { prefix sys-net; }
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+		 Postal: 208 S. Akard Street
+				 Dallas, TX 75202
+		 Web: www.att.com";
+
+	description
+		"Copyright (c) 2017-2019 AT&T Intellectual Property
+		 All rights reserved.
+
+		 Copyright (c) 2014-2017 by Brocade Communications Systems, Inc.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or without
+		 modification, are permitted provided that the following conditions
+		 are met:
+
+		 1. Redistributions of source code must retain the above copyright
+		    notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+		    copyright notice, this list of conditions and the following
+		    disclaimer in the documentation and/or other materials provided
+		    with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+		    contributors may be used to endorse or promote products derived
+		    from this software without specific prior written permission.
+
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+
+		 This module implements vyatta-interfaces-v1.";
+
+	revision 2019-03-22 {
+		description
+			"Add configd:must for more efficient interface leafref validation";
+	}
+	revision 2019-02-27 {
+		description "Move the interface statistics into a new grouping";
+	}
+	revision 2019-02-21 {
+		description "Remove default for gratuitous ARP reply action";
+	}
+	revision 2018-11-21 {
+		description "Duplicates if-status to an operational state link-state
+		grouping for use in interface statistics";
+	}
+	revision 2018-10-01 {
+		description "Interface statistics now uses if-status, address-list,
+		speed, duplex";
+	}
+	revision 2018-09-12 {
+		description
+			"Change gratuitous ARP action scripts";
+	}
+	revision 2018-08-30 {
+		description
+			"Use new validate-interfaces script for top-level interface
+             validation to improve speed.";
+	}
+	revision 2018-06-15 {
+		description "Add gratuitous ARP processing command";
+	}
+	revision 2018-01-22 {
+		description "Add link-parameters grouping";
+	}
+	revision 2017-12-14 {
+		description "Add source-interface-leaf grouping";
+	}
+	revision 2017-03-07 {
+		description "SD-WAN support for interface statistics";
+	}
+	revision 2016-08-24 {
+		description "Refactor groupings to support system (host) interfaces";
+	}
+	revision 2016-03-28 {
+		description "Remove use of bash in action scripts";
+	}
+	revision 2015-08-05 {
+		description "Initial revision of version 1.";
+	}
+
+	typedef address {
+		type union {
+			type types:ipv4-prefix {
+				configd:help "IPv4 Address";
+				configd:syntax "valid_address $VAR(@)";
+			}
+			type types:ipv6-prefix {
+				configd:help "IPv6 Address";
+				configd:syntax "valid_address $VAR(@)";
+			}
+			configd:normalize "normalize ip";
+		}
+	}
+
+	typedef address-dhcp {
+		type union {
+			type enumeration {
+				enum dhcp {
+					configd:help "Use DHCP to acquire an address";
+				}
+				enum dhcpv6  {
+					configd:help "Use DHCPv6 to acquire an address";
+				}
+			}
+			type address;
+			configd:normalize "normalize ip";
+		}
+	}
+
+	typedef description {
+		type string {
+			length "1..256";
+		}
+	}
+
+	typedef bytes {
+		type uint64;
+		units "bytes";
+		description "Number of bytes";
+	}
+
+	typedef packets {
+		type uint64;
+		units "packets";
+		description "Number of packets";
+	}
+
+	grouping if-status {
+		leaf admin-status {
+			type enumeration {
+				enum up;
+				enum down;
+				enum testing;
+			}
+			description "Interface's desired state";
+			config false;
+		}
+		leaf oper-status {
+			type enumeration {
+				enum up;
+				enum down;
+				enum testing;
+				enum unknown;
+				enum dormant;
+				enum notpresent;
+				enum lowerlayerdown;
+			}
+			description "Interface's current operational state";
+			config false;
+		}
+	}
+
+	grouping if-parameters-base {
+		leaf disable {
+			type empty;
+			configd:help "Disable interface";
+			configd:create "ip link set $VAR(../@) down";
+		}
+		leaf disable-link-detect {
+			type empty;
+			configd:help "Ignore link state changes";
+			configd:create "vyatta-link-detect $VAR(../@) off";
+			configd:delete "vyatta-link-detect $VAR(../@) on";
+		}
+		container ip {
+			configd:help "IPv4 parameters";
+
+			leaf enable-proxy-arp {
+				type empty;
+				configd:help "Enable proxy-arp on this interface";
+				configd:create "sysctl -wq /net/ipv4/conf/$VAR(../../@)/proxy_arp=1";
+				configd:delete "sysctl -wq /net/ipv4/conf/$VAR(../../@)/proxy_arp=0";
+			}
+			leaf rpf-check {
+				type enumeration {
+					enum "disable" {
+						value 0;
+						configd:help "No source validation";
+					}
+					enum "strict" {
+						value 1;
+						configd:help "Enable Strict Reverse Path Forwarding as defined in RFC3704";
+					}
+					enum "loose" {
+						value 2;
+						configd:help "Enable Loose Reverse Path Forwarding as defined in RFC3704";
+					}
+				}
+				configd:help "Reverse path filter policy (see RFC3704)";
+				default "disable";
+				configd:update "set-rpf-check $VAR(@) $VAR(../../@)";
+				configd:delete "set-rpf-check disable $VAR(../../@)";
+			}
+			leaf gratuitous-arp-count {
+				type uint32 {
+					range 0..10;
+				}
+				configd:help "# of unsolicited arps sent on link up (0 to disable)";
+				default "1";
+			}
+			uses sys-net:garp-config {
+				refine gratuitous-arp {
+					description "Control processing of GARPs received on this interface.
+					             This command is only operational on L3 interfaces.
+					             It is a no-op on L2 interfaces.";
+					configd:help "Control processing of GARPs received on this interface";
+				}
+				refine gratuitous-arp/request {
+					configd:update "vyatta-interfaces-garp --action ${COMMIT_ACTION} --dev $VAR(../../../@) --garp $VAR(.),$VAR(@)";
+					configd:delete "vyatta-interfaces-garp --action ${COMMIT_ACTION} --dev $VAR(../../../@) --garp $VAR(.),$VAR(@)";
+				}
+				refine gratuitous-arp/reply {
+					configd:update "vyatta-interfaces-garp --action ${COMMIT_ACTION} --dev $VAR(../../../@) --garp $VAR(.),$VAR(@)";
+					configd:delete "vyatta-interfaces-garp --action ${COMMIT_ACTION} --dev $VAR(../../../@) --garp $VAR(.),$VAR(@)";
+				}
+			}
+		}
+
+		container ipv6 {
+			configd:help "IPv6 parameters";
+		}
+	}
+
+	grouping if-parameter-description {
+		leaf description {
+			type description;
+			description "Interface description";
+			configd:help "Interface Description";
+			configd:update "ip li set dev $VAR(../@) alias '$VAR(@)'";
+			configd:delete "vyatta-interfaces.pl --dev=$VAR(../@) --delete-description";
+		}
+	}
+
+	grouping if-parameter-log-martians {
+		leaf log_martians {
+			type empty;
+			description "Enable the logging of bogus packets";
+			configd:help "Enable the logging of bogus packets";
+			configd:create "sysctl -wq /net/ipv4/conf/$VAR(../@)/log_martians=1";
+			configd:delete "sysctl -wq /net/ipv4/conf/$VAR(../@)/log_martians=0";
+		}
+	}
+
+	grouping if-parameters-host {
+		description "Attributes used by host (administrative) interfaces";
+		uses if-parameter-description;
+		uses if-parameters-base;
+		uses if-parameter-log-martians;
+	}
+
+	grouping if-parameters {
+		description "Attributes used by forwarding interfaces";
+		uses if-parameter-description;
+		uses if-parameters-base {
+			augment ip {
+				leaf disable-forwarding {
+					type empty;
+					configd:help "Disable IPv4 forwarding on this interface";
+					configd:create "sysctl -wq /net/ipv4/conf/$VAR(../../@)/forwarding=0";
+					configd:delete "sysctl -wq /net/ipv4/conf/$VAR(../../@)/forwarding=1";
+				}
+			}
+		}
+		uses if-parameter-log-martians;
+	}
+
+	grouping vif-parameters-ip-base {
+		description "Attributes used to manage IPv4 operations on sub-interfaces";
+
+		leaf enable-proxy-arp {
+			type empty;
+			description "Enable proxy-arp on this interface";
+			configd:help "Enable proxy-arp on this interface";
+			configd:create "sysctl -wq /net/ipv4/conf/$VAR(../../../@).$VAR(../../@)/proxy_arp=1";
+			configd:delete "sysctl -wq /net/ipv4/conf/$VAR(../../../@).$VAR(../../@)/proxy_arp=0";
+		}
+
+		uses sys-net:garp-config {
+			refine gratuitous-arp {
+				description "Control processing of GARPs received on this interface.
+				             This command is only operational on L3 interfaces.
+				             It is a no-op on L2 interfaces.";
+				configd:help "Control processing of GARPs received on this interface";
+			}
+			refine gratuitous-arp/request {
+				configd:update "vyatta-interfaces-garp --action ${COMMIT_ACTION} --dev $VAR(../../../../@).$VAR(../../../@) --garp $VAR(.),$VAR(@)";
+				configd:delete "vyatta-interfaces-garp --action ${COMMIT_ACTION} --dev $VAR(../../../../@).$VAR(../../../@) --garp $VAR(.),$VAR(@)";
+			}
+			refine gratuitous-arp/reply {
+				configd:update "vyatta-interfaces-garp --action ${COMMIT_ACTION} --dev $VAR(../../../../@).$VAR(../../../@) --garp $VAR(.),$VAR(@)";
+				configd:delete "vyatta-interfaces-garp --action ${COMMIT_ACTION} --dev $VAR(../../../../@).$VAR(../../../@) --garp $VAR(.),$VAR(@)";
+			}
+		}
+
+		leaf rpf-check {
+			type enumeration {
+				enum "disable" {
+					value 0;
+					description "No source validation";
+					configd:help "No source validation";
+				}
+				enum "strict" {
+					value 1;
+					description "Enable Strict Reverse Path Forwarding as defined in RFC3704";
+					configd:help "Enable Strict Reverse Path Forwarding as defined in RFC3704";
+				}
+				enum "loose" {
+					value 2;
+					description "Enable Loose Reverse Path Forwarding as defined in RFC3704";
+					configd:help "Enable Loose Reverse Path Forwarding as defined in RFC3704";
+				}
+			}
+			description "Reverse path filter policy (see RFC3704)";
+			configd:help "Reverse path filter policy (see RFC3704)";
+			default "disable";
+			configd:update "set-rpf-check $VAR(@) $VAR(../../../@).$VAR(../../@)";
+			configd:delete "set-rpf-check disable $VAR(../../../@).$VAR(../../@)";
+		}
+	}
+
+	grouping vif-parameters-common {
+		description "Attributes shared between host sub-interfaces and forwarding sub-interfaces";
+
+		leaf disable {
+			type empty;
+			description "Disable this interface";
+			configd:help "Disable interface";
+			configd:create "ip link set $VAR(../../@).$VAR(../@) down";
+		}
+		leaf log_martians {
+			type empty;
+			description "Enable the logging of bogus packets";
+			configd:help "Enable the logging of bogus packets";
+			configd:create "sysctl -wq /net/ipv4/conf/$VAR(../../@).$VAR(../@)/log_martians=1";
+			configd:delete "sysctl -wq /net/ipv4/conf/$VAR(../../@).$VAR(../@)/log_martians=0";
+		}
+		container ip {
+			description "IPv4 interface parameters";
+			configd:help "IPv4 parameters";
+		}
+
+		container ipv6 {
+			description "IPv6 interface parameters";
+			configd:help "IPv6 parameters";
+		}
+	}
+
+	grouping vif-parameters-host {
+		description "Attributes used by host (administrative) sub-interfaces";
+		uses vif-parameters-common {
+			augment ip {
+				uses vif-parameters-ip-base;
+			}
+		}
+	}
+
+	grouping vif-parameters-base {
+		description "Base attributes used by all forwarding sub-interfaces";
+		uses vif-parameters-common {
+			augment ip {
+				leaf disable-forwarding {
+					type empty;
+					description "Disable IPv4 forwarding on this interface";
+					configd:help "Disable IPv4 forwarding on this interface";
+					configd:create "sysctl -wq /net/ipv4/conf/$VAR(../../../@).$VAR(../../@)/forwarding=0";
+					configd:delete "sysctl -wq /net/ipv4/conf/$VAR(../../../@).$VAR(../../@)/forwarding=1";
+				}
+				uses vif-parameters-ip-base;
+			}
+		}
+	}
+
+	grouping vif-description {
+		leaf description {
+			type description;
+			description "Virtual sub-interface description";
+			configd:help "Virtual sub-interface Description";
+			configd:update "ip li set dev $VAR(../../@).$VAR(../@) alias '$VAR(@)'";
+			configd:delete "vyatta-interfaces.pl --dev=$VAR(../../@).$VAR(../@) --delete-description";
+		}
+	}
+
+	grouping vif-parameters {
+		uses vif-description;
+		uses vif-parameters-base;
+	}
+
+	grouping source-interface-leaf {
+		leaf source-interface {
+			type types:interface-ifname;
+			configd:help "Source interface";
+			description "Source interface";
+			configd:allowed "/opt/vyatta/sbin/vyatta-interfaces.pl --show all --filter-out ^lord";
+			must "(/vyatta-if-v1:interfaces/*/*[(local-name(.) = 'tagnode') or " +
+									"(local-name(.) = 'ifname')] = current())" +
+				 "or /vyatta-if-v1:interfaces/*/*[local-name(.) = 'vif']" +
+									"[./../* = substring-before(current(), '.')]" +
+									"/*[(local-name(.) = 'tagnode') or " +
+									"   (local-name(.) = 'ifname')]" +
+									"[. = substring-after(current(), '.')]" {
+				error-message "Interface must exist in the configuration";
+				configd:must "is-interface-leafref-original(.)";
+			}
+		}
+	}
+
+	grouping link-parameters {
+		leaf speed {
+			configd:help "Link speed";
+			type enumeration {
+				enum auto {
+					configd:help "Auto negotiation (default)";
+				}
+				enum 10m {
+					configd:help "10 Mbit/sec";
+				}
+				enum 100m {
+					configd:help "100 Mbit/sec";
+				}
+				enum 1g {
+					configd:help "1 Gbit/sec";
+				}
+				enum 2.5g {
+					configd:help "2.5 Gbit/sec";
+				}
+				enum 10g {
+					configd:help "10 Gbit/sec";
+				}
+				enum 25g {
+					configd:help "25 Gbit/sec";
+				}
+				enum 40g {
+					configd:help "40 Gbit/sec";
+				}
+				enum 100g {
+					configd:help "100 Gbit/sec";
+				}
+			}
+			default "auto";
+		}
+
+		leaf duplex {
+			configd:help "Duplex mode";
+			must "not(current() = 'half' and ../speed != '10m' and ../speed != '100m')" {
+				error-message "half duplex should only be used with speeds of 10m or 100m";
+			}
+			must "../speed or current() != 'half'" {
+				error-message "half duplex should specify a link speed";
+			}
+			type enumeration {
+				enum auto {
+					configd:help "Auto negotiation (default)";
+				}
+				enum half {
+					configd:help "Half duplex";
+				}
+				enum full {
+					configd:help "Full duplex";
+				}
+			}
+			default "auto";
+		}
+	}
+
+	grouping link-state {
+		leaf speed {
+			description "Link speed";
+			units "Mbits/sec";
+			type uint32;
+			default 0;
+		}
+
+		leaf duplex {
+			description "Duplex mode";
+			type enumeration {
+				enum unknown {
+					description "Unknown link duplex";
+				}
+				enum half {
+					description "Half duplex";
+				}
+				enum full {
+					description "Full duplex";
+				}
+			}
+			default "unknown";
+		}
+	}
+
+	grouping packet-statistics {
+		container receive-statistics {
+			description "RX statistics for interface";
+			leaf bytes {
+				description "Number of bytes received";
+				type bytes;
+			}
+			leaf packets {
+				description "Number of packets received";
+				type packets;
+			}
+			leaf errors {
+				description "Number of packets received with errors";
+				type packets;
+			}
+			leaf dropped {
+				description "Number of packets received and dropped";
+				type packets;
+			}
+			leaf oversized-packets {
+				description "Number of oversized packets received";
+				type packets;
+			}
+			leaf multicast {
+				description "Number of multicast packets received";
+				type packets;
+			}
+		}
+		container transmit-statistics {
+			description "TX statistics for interface";
+			leaf bytes {
+				description "Number of bytes transmitted";
+				type bytes;
+			}
+			leaf packets {
+				description "Number of packets transmitted";
+				type packets;
+			}
+			leaf errors {
+				description "Number of packets with transmit errors";
+				type packets;
+			}
+			leaf dropped {
+				description "Number of transmit packets dropped";
+				type packets;
+			}
+			leaf carrier-errors {
+				description "Number of transmit packets with carrier errors";
+				type packets;
+			}
+			leaf collisions {
+				description "Number of collisions on packets transmitted";
+				type packets;
+			}
+		}
+	}
+
+	container interfaces {
+		configd:help "Network interfaces";
+		configd:begin "/opt/vyatta/sbin/vyatta-delete-addrs.pl";
+		configd:end "/bin/run-parts ${vyatta_datarootdir}/tmplscripts${CONFIGD_PATH}/configd_end.d";
+		configd:validate "validate-interfaces.pl";
+
+		container statistics {
+			description "RX and TX statistics for interfaces";
+			config false;
+			configd:get-state "/opt/vyatta/bin/ifstats-op-mode";
+
+			list interface {
+				description "List of interfaces";
+				key "name";
+				leaf name {
+					description "Name of interface";
+					type types:interface-ifname;
+				}
+				leaf type {
+					description "Type of interface";
+					type string;
+				}
+				list addresses {
+					description "All IP addresses associated with this interface";
+					key "address";
+					leaf address {
+						description "IP address of the interface";
+						type address;
+					}
+				}
+				leaf description {
+					description "Description of the interface";
+					type string;
+				}
+				uses if-status;
+				uses link-state;
+				uses packet-statistics;
+			}
+		}
+	}
+}

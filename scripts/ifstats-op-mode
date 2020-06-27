@@ -1,0 +1,128 @@
+#!/usr/bin/perl
+#
+# Module: ifstats-op-mode
+#
+# **** License ****
+#
+# Copyright (c) 2018-2020, AT&T Intellectual Property.
+# All Rights Reserved.
+#
+# Copyright (c) 2014-2017 by Brocade Communications Systems, Inc.
+# All rights reserved.
+#
+# This code was originally developed by Vyatta, Inc.
+# Portions created by Vyatta are Copyright (C) 2007-2013 Vyatta, Inc.
+# All Rights Reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# **** End License ****
+#
+
+use lib "/opt/vyatta/share/perl5/";
+
+use Vyatta::Configd;
+use Vyatta::Interface;
+use Vyatta::Misc;
+use Vyatta::InterfaceStats;
+use JSON;
+
+use strict;
+use warnings;
+
+my @link_type = qw/duplex speed/;
+my @rx_stat_vars =
+  qw/rx_bytes rx_packets rx_errors rx_dropped rx_over_errors multicast/;
+my @tx_stat_vars =
+  qw/tx_bytes tx_packets tx_errors tx_dropped tx_carrier_errors collisions/;
+my %rx_var_map = (
+    rx_bytes       => 'bytes',
+    rx_packets     => 'packets',
+    rx_errors      => 'errors',
+    rx_dropped     => 'dropped',
+    rx_over_errors => 'oversized-packets',
+    multicast      => 'multicast',
+);
+my %tx_var_map = (
+    tx_bytes          => 'bytes',
+    tx_packets        => 'packets',
+    tx_errors         => 'errors',
+    tx_dropped        => 'dropped',
+    tx_carrier_errors => 'carrier-errors',
+    collisions        => 'collisions',
+);
+
+sub get_stats {
+    my $intfs = shift;
+
+    my %yang_state;
+    my @iflist;
+    foreach my $intf (@$intfs) {
+        my $interface = new Vyatta::Interface($intf);
+        next unless $interface;
+        next unless $interface->exists();
+
+        if ($intf eq "erspan0") {
+           my $client = Vyatta::Configd::Client->new();
+           my $exists = $client->node_exists($Vyatta::Configd::Client::AUTO, $interface->{path});
+
+           next unless $exists;
+        }
+
+        my %ifstats = ();
+        $ifstats{'name'} = $intf;
+        $ifstats{'type'} = $interface->type();
+        my $desc = $interface->description();
+        $ifstats{'description'} = $desc if defined $desc;
+        my @addrs = $interface->get_ipaddr_list();
+
+        my @tmp;
+        foreach my $e (@addrs) {
+            my %hash;
+            $hash{address} = $e;
+            push @tmp, \%hash;
+        }
+        @addrs = @tmp;
+        $ifstats{'addresses'} = \@addrs;
+        $ifstats{'admin-status'} = $interface->up()      ? 'up' : 'down';
+        $ifstats{'oper-status'}  = $interface->running() ? 'up' : 'down';
+
+        my %clear = get_clear_stats( $intf, ( @rx_stat_vars, @tx_stat_vars ) );
+        my %stats = get_intf_stats( $intf,  ( @rx_stat_vars, @tx_stat_vars ) );
+        my %type = get_intf_type( $intf, @link_type );
+
+        # Reported speeds can be negative if the device doesn't have
+        # any idea what to do. Convert thesee all to 0 (unknown).
+        if ( defined $type{speed} && $type{speed} < 0 ) {
+            $type{speed} = 0;
+        }
+
+        my %rx_stats = ();
+        foreach my $key (@rx_stat_vars) {
+            $rx_stats{ $rx_var_map{$key} } = sprintf "%u",
+              get_counter_val( $clear{$key}, $stats{$key} );
+        }
+        $ifstats{'receive-statistics'} = \%rx_stats;
+
+        my %tx_stats = ();
+        foreach my $key (@tx_stat_vars) {
+            $tx_stats{ $tx_var_map{$key} } = sprintf "%u",
+              get_counter_val( $clear{$key}, $stats{$key} );
+        }
+        $ifstats{'transmit-statistics'} = \%tx_stats;
+
+        push @iflist, \%ifstats;
+        my %link_type = ();
+        foreach my $key (@link_type) {
+            $link_type{$key} = $type{$key} if defined $type{$key};
+        }
+        %ifstats = ( %ifstats, %link_type );
+    }
+    $yang_state{'interface'} = \@iflist;
+    print encode_json( \%yang_state );
+}
+
+my @intf_list;
+
+@intf_list = getInterfaces();
+get_stats( \@intf_list );

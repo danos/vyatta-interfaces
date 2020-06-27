@@ -1,4 +1,7 @@
+opt/vyatta/bin/ifstats-op-mode
+opt/vyatta/bin/yang-getop-interface
 opt/vyatta/sbin/check-interface-exists.pl
+opt/vyatta/sbin/set-rpf-check
 opt/vyatta/sbin/vyatta-interfaces-tunnel-erspan
 opt/vyatta/sbin/vyatta-intf-create
 opt/vyatta/sbin/vyatta-tunnel-deferred.pl

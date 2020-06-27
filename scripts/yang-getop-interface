@@ -1,0 +1,129 @@
+#!/usr/bin/perl
+
+#
+# Copyright (c) 2017-2019, AT&T Intellectual Property. All rights reserved.
+#
+# Copyright (c) 2015 Brocade Communications Systems, Inc.
+# All rights reserved
+#
+# SPDX-License-Identifier: GPL-2.0-only
+
+use lib "/opt/vyatta/share/perl5/";
+
+use strict;
+use warnings;
+use Vyatta::Interface;
+use Vyatta::Misc;
+use JSON;
+
+# For reference, Vyatta::Interface provides the following values:
+#
+# $VAR1 = bless( {
+#                  'dev' => 'dp0s5',
+#                  'vrid' => undef,
+#                  'vif' => undef,
+#                  'name' => 'dp0s5',
+#                  'path' => 'interfaces dataplane dp0s5',
+#                  'type' => 'dataplane'
+#                }, 'Vyatta::Interface' );
+#
+# Desired output format should be thus:
+#
+# {
+# 	"interfaces":{
+# 		"dataplane":[
+# 			{"tagnode":"dp0s3", "oper-status":"up", "admin-status":"down" },
+# 			{"tagnode":"dp0s<n>", <params> }
+# 		],
+# 		"loopback":[
+# 			{"tagnode":"lo", <params> }
+# 		]
+# 	}
+# }
+#
+# If VIFs are configured:
+#
+# $VAR1 = bless( {
+#                  'dev' => 'dp0s5',
+#                  'vrid' => undef,
+#                  'vif' => 1,
+#                  'name' => 'dp0s5.1',
+#                  'path' => 'interfaces dataplane dp0s5 vif 1',
+#                  'type' => 'dataplane'
+#                }, 'Vyatta::Interface' );
+#
+# Desired output format in this case should therefore be:
+#
+# {
+#   "interfaces":{
+#       "dataplane":[
+#           {"tagnode":"dp0s5", "oper-status":"up", "admin-status":"up",
+#            "vif":[{"tagnode":1, "oper-status":"up", "admin-status":"down"}]}
+#       ]
+#   }
+# }
+
+sub get_intfs {
+    my $out     = shift;
+    my @allintf = Vyatta::Misc::getInterfaces();
+    foreach my $intf (@allintf) {
+        my $interface = new Vyatta::Interface($intf);
+        next unless $interface;
+
+        my $admin = $interface->up() ? 'up' : 'down';
+        my $oper = $interface->operstate();
+
+        my %intf_data_hash;
+        my $intf_data = \%intf_data_hash;
+
+        if ( $interface->vif ) {
+            # Ignore QinQ outer interfaces since aren't physical
+            # dataplane interfaces.
+            next if $interface->vif =~ /^0/;
+
+            $intf_data->{"tagnode"} = $interface->physicalDevice;
+            my @vif = (
+                {
+                    'tagnode'      => $interface->vif,
+                    'admin-status' => $admin,
+                    'oper-status'  => $oper,
+                }
+            );
+            $intf_data->{"vif"} = \@vif;
+        }
+        else {
+            $intf_data->{"tagnode"}      = $interface->name;
+            $intf_data->{"admin-status"} = $admin;
+            $intf_data->{"oper-status"}  = $oper;
+        }
+
+        if ( !exists $out->{interfaces}{ $interface->type } ) {
+            $out->{interfaces}{ $interface->type } = [];
+        }
+        push( @{ $out->{interfaces}{ $interface->type } }, $intf_data );
+    }
+}
+
+my $intf_type = "";
+if (@ARGV) {
+    $intf_type = shift;
+}
+
+#
+# Get data for all interfaces, then filter what we print out as JSON.
+# Could pass in filter to get_intfs() but we would still need to
+# filter here to print subset of JSON so just do it all here.
+#
+my %out;
+get_intfs( \%out );
+
+if ( $intf_type ne "" ) {
+    if ( exists $out{'interfaces'}{$intf_type} ) {
+        print encode_json( $out{'interfaces'}{$intf_type} );
+    } else {
+        print encode_json( [] );
+    }
+} else {
+    print encode_json( $out{'interfaces'} );
+}
+

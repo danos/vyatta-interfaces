@@ -1,0 +1,17 @@
+#!/bin/bash
+# Copyright (c) 2019, AT&T Intellectual Property. All rights reserved.
+#
+# Copyright (c) 2015-2016 by Brocade Communications Systems, Inc.
+# All rights reserved.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+VALUE=$1
+INTF=$2
+
+# ignore requests for non-existent devices
+[ -d "/proc/sys/net/ipv4/conf/$INTF" ] || exit 0
+
+# map names to kernel values
+declare -A sysctlval=(["disable"]="0" ["strict"]="1" ["loose"]="2")
+
+sysctl -wq "/net/ipv4/conf/$INTF/rp_filter=${sysctlval[$VALUE]}"
