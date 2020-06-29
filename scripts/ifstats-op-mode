@@ -63,10 +63,7 @@ sub get_stats {
         next unless $interface->exists();
 
         if ($intf eq "erspan0") {
-           my $client = Vyatta::Configd::Client->new();
-           my $exists = $client->node_exists($Vyatta::Configd::Client::AUTO, $interface->{path});
-
-           next unless $exists;
+            next unless $interface->configured();
         }
 
         my %ifstats = ();

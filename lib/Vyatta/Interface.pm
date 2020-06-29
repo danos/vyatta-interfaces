@@ -245,9 +245,9 @@ sub physicalDevice {
 
 sub configured {
     my $self   = shift;
-    my $config = Vyatta::Config->new();
+    my $client = Vyatta::Configd::Client->new();
 
-    return $config->exists( $self->{path} );
+    return $client->node_exists( $Vyatta::Configd::Client::AUTO, $self->{path} );
 }
 
 sub disabled {
