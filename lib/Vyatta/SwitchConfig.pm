@@ -303,6 +303,8 @@ sub get_default_switchports {
 sub get_current_softswitch_name {
     my ($ifname) = @_;
 
+    return
+      if $ifname =~  m/vrrp/;
     my ($master) = grep { /^upper_/ } read_dir("/sys/class/net/$ifname");
     return
       if !defined($master);
