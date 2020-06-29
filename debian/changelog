@@ -1,3 +1,20 @@
+vyatta-interfaces (1.89) unstable; urgency=medium
+
+  [ Daniel Gollub ]
+  * vti: move yang modules to vyatta-security-vpn
+
+  [ Anthony Dempsey ]
+  * Update VRRP RFC mapping to use VRRP VCI RPC
+  * Add missing semi-colon to try/catch
+
+  [ Mandeep Rohilla ]
+  * router mode: enable hw_forwarding for router interfaces
+
+  [ Charles (Chas) Williams ]
+  * Move vyatta-interfaces-v1.yang to vyatta-interfaces (Bugfix: VRVDR-51933)
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Mon, 29 Jun 2020 16:03:10 -0700
+
 vyatta-interfaces (1.88) unstable; urgency=medium
 
   [ Thomas Kiely ]
