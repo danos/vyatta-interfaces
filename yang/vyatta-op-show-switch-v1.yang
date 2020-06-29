@@ -55,8 +55,8 @@ module vyatta-op-show-switch-v1 {
 
 		Defines the top 'switch' level under 'show' for operational CLI";
 
-	revision 2020-05-14 {
-		description "Add per port per vlan MAC count option";
+	revision 2020-07-02 {
+		description "Add per port per vlan MAC limit status command";
 	}
 
 	revision 2018-10-26 {
@@ -109,12 +109,16 @@ module vyatta-op-show-switch-v1 {
 								opd:help "VLAN number";
 								type types:vlan;
 
-								opd:command count {
-									opd:help "Show MAC count on specified port and vlan";
-									opd:on-enter "vyatta-switch-op --action=show-macs-count --switch=$3 --port=$6 --vlan=$8";
+								opd:command limit {
+									opd:help "Show MAC limit information for specified port and vlan";
+
+									opd:command status {
+										opd:help "Show MAC limit status for specified port and vlan";
+										opd:on-enter "vyatta-switch-op --action=show-mac-limit-status --switch=$3 --port=$6 --vlan=$8";
+									}
 								}
-						     }
-						 }
+							}
+						}
 					}
 
 					opd:option vlan {

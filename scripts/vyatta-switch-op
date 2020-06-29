@@ -27,7 +27,7 @@ sub usage {
     printf
 "  --action=show-macs --switch=<switch> [--port=<port>] [--mac=<mac>] [--vlan=<vlan-id>]\n";
     printf
-"  --action=show-macs-count --switch<switch> --port=<port-id> --vlan=<vlan-id>\n";
+"  --action=show-mac-limit-status --switch<switch> --port=<port-id> --vlan=<vlan-id>\n";
     printf "  --action=show-vlan-stats --switch<switch> [ --vlan=<vlan-id>]\n";
     printf "  --action=clear-vlan-stats --switch<switch> [ --vlan=<vlan-id>]\n";
     exit 1;
@@ -45,8 +45,8 @@ if ( $action and $action eq 'show-switch' ) {
     action_show_switch($opt_switch);
 } elsif ( $action and $action eq 'show-macs' ) {
     action_show_macs( $opt_switch, $opt_port, $opt_mac_addr, $opt_vlan );
-} elsif ( $action and $action eq 'show-macs-count' ) {
-    action_show_macs_count( $opt_switch, $opt_port, $opt_vlan );
+} elsif ( $action and $action eq 'show-mac-limit-status' ) {
+    action_show_mac_limit_status ( $opt_switch, $opt_port, $opt_vlan );
 } elsif ( $action and $action eq 'show-vlan-stats' ) {
     action_show_vlan_stats( $opt_switch, $opt_vlan );
 } elsif ( $action and $action eq 'clear-vlan-stats' ) {
@@ -199,11 +199,11 @@ sub action_show_macs {
     }
 }
 
-sub action_show_macs_count {
+sub action_show_mac_limit_status {
     my ( $switch_name, $port_name, $vlan ) = @_;
     my ( $dp_ids, $dp_conns ) = Vyatta::Dataplane::setup_fabric_conns();
 
-    my $response = vplane_exec_cmd( "mac-limit show mac-count $port_name $vlan",
+    my $response = vplane_exec_cmd( "mac-limit show status $port_name $vlan",
         $dp_ids, $dp_conns, 1 );
 
     # Decode the response from each vplane
