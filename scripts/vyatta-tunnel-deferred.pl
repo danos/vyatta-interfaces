@@ -41,23 +41,10 @@ sub opennhrp_is_running {
     return ( qx(pgrep opennhrp) ne "" );
 }
 
-sub update_nhrp_ipsec_triggers {
+sub update_nhrp_triggers {
     my ( $nhrp, $tunnel, $local_addr, $tunnel_exists, $address_transition ) =
       @_;
     if ( $nhrp eq "NHRP" ) {
-        if (
-            -e "/opt/vyatta/sbin/dmvpn-address-update-in-place-or-generate.pl" )
-        {
-            if ( defined($tunnel_exists) && defined($address_transition) ) {
-                system(
-"/opt/vyatta/sbin/dmvpn-address-update-in-place-or-generate.pl --tun_id=$tunnel --replace_addr=$local_addr"
-                );
-            } else {
-                system(
-"/opt/vyatta/sbin/dmvpn-address-update-in-place-or-generate.pl --tunnel_context --tun_id=$tunnel"
-                );
-            }
-        }
         if ( defined($address_transition) ) {
             system(
 "/opt/vyatta/sbin/vyatta-update-nhrp.pl --tun $tunnel --local_addr $local_addr --update_iptables"
@@ -169,7 +156,7 @@ sub create_or_modify_tunnel {
         } else {
             system("ip link $tunnel_verb $tunnel type gre local $local_addr");
         }
-        update_nhrp_ipsec_triggers( $nhrp, $tunnel,
+        update_nhrp_triggers( $nhrp, $tunnel,
             $local_addr, undef, $address_transition );
         if ( $tunnel_verb eq "add" ) {
             system("invoke-rc.d opennhrp start");
@@ -513,13 +500,6 @@ sub create_tunnel_now_or_defer {
                 $ttl,                $tos,
                 $t_vrf_name,         $grp_addr,
                 $params
-            );
-        } else {
-
-            #DHCP intf, don't have a local-address yet, so generate a dummy
-            #config with a local address of 0.0.0.0
-            system(
-"/opt/vyatta/sbin/dmvpn-address-update-in-place-or-generate.pl --force_generate_config --tunnel_context --tun_id=$tunnel"
             );
         }
     } else {
