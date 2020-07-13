@@ -1,3 +1,16 @@
+vyatta-interfaces (1.90) unstable; urgency=medium
+
+  [ Charles (Chas) Williams ]
+  * Use Vyatta::Configd::Client for Interface->configured (Bugfix: VRVDR-51965)
+
+  [ Anthony Dempsey ]
+  * Bugfix/Don't attempt to read_dir for VRRP intfs
+
+  [ Thomas Kiely ]
+  * mac_limit: Rename "mac-count" command to "limit status".
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Mon, 13 Jul 2020 11:17:45 -0700
+
 vyatta-interfaces (1.89) unstable; urgency=medium
 
   [ Daniel Gollub ]
