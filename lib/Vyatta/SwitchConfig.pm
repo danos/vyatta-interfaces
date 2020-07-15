@@ -130,6 +130,22 @@ sub get_ifconfig {
     return @results;
 }
 
+sub get_mgmt_ports {
+    my @results   = @_;
+    my @mgmtports = ();
+
+    foreach my $result (@results) {
+        my @intfs = @{ $result->{interfaces} };
+        foreach my $intf (@intfs) {
+            my $is_mgmt_port = $intf->{dev}->{management};
+            next unless ( defined($is_mgmt_port) && $is_mgmt_port );
+
+            push( @mgmtports, $intf->{name} );
+        }
+    }
+    return @mgmtports;
+}
+
 sub create_hwcfg {
     my @ifconfig   = get_ifconfig();
     my %swport_map = build_switchport_map(@ifconfig);
@@ -144,6 +160,9 @@ sub create_hwcfg {
     );
     my $tmp_file = $tmp->filename;
     setup_switch_cfg_file($tmp_file);
+    set_switch_cfg_file( $tmp_file, "ManagementPorts",
+        join( ',', sort( get_mgmt_ports(@ifconfig) ) ),
+        0, $HW_SEC_NAME );
     my @switches = ( keys %swport_map );
     set_switch_cfg_file( $tmp_file, "HwSwitchCount", scalar @switches,
         0, $HW_SEC_NAME );
