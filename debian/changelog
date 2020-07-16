@@ -1,3 +1,11 @@
+vyatta-interfaces (1.92) unstable; urgency=medium
+
+  [ Robert Shearman ]
+  * SwitchConfig.pm: write ManagementPorts value to switch.conf
+    (Closes: VRVDR-52175)
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Thu, 16 Jul 2020 17:38:15 +0000
+
 vyatta-interfaces (1.91) unstable; urgency=medium
 
   [ Daniel Gollub ]
