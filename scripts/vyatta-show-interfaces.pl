@@ -655,9 +655,9 @@ sub run_show_intf_extensive {
         my @sortedkeys = sort(@keys);
 
         @sortedkeys =
-          show_keys( "^rx", \@sortedkeys, $statistics, $xstatistics );
+          show_keys( "^rx|^vf_rx", \@sortedkeys, $statistics, $xstatistics );
         @sortedkeys =
-          show_keys( "^tx", \@sortedkeys, $statistics, $xstatistics );
+          show_keys( "^tx|^vf_tx", \@sortedkeys, $statistics, $xstatistics );
         #
         # Skip the list (array) of queue stats in the "statistics"
         # object. The xstatistics object includes the values for queue
