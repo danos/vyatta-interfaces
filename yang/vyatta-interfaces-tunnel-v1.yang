@@ -24,7 +24,7 @@ module vyatta-interfaces-tunnel-v1 {
 		 Web: www.att.com";
 
 	description
-		"Copyright (c) 2017, AT&T Intellectual Property.
+		"Copyright (c) 2017-2018, 2020, AT&T Intellectual Property.
 		 All rights reserved.
 
 		 Copyright (c) 2016-2017 by Brocade Communications Systems, Inc.
@@ -61,6 +61,9 @@ module vyatta-interfaces-tunnel-v1 {
 
 		 Tunnel interface configuration";
 
+	revision 2020-07-27 {
+		description "Remove incorrect pmtudisc/ttl validation"
+	}
 	revision 2018-12-18 {
 		description "Remove delete action and instead handle the removal in end action";
 	}
@@ -291,7 +294,6 @@ module vyatta-interfaces-tunnel-v1 {
 				configd:help "Disable pmtu discovery support";
 				configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/pmtudisc/configd_update.sh";
 				configd:delete "/opt/vyatta/share/tmplscripts/interfaces/tunnel/pmtudisc/configd_delete.sh";
-				configd:validate "/opt/vyatta/share/tmplscripts/interfaces/tunnel/pmtudisc/configd_validate1.sh";
 			}
 			leaf disable {
 				type empty;
