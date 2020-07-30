@@ -61,8 +61,8 @@ module vyatta-interfaces-tunnel-v1 {
 
 		 Tunnel interface configuration";
 
-	revision 2020-07-27 {
-		description "Remove incorrect pmtudisc/ttl validation"
+	revision 2020-07-30 {
+		description "Remove incorrect pmtudisc/ttl validation";
 	}
 	revision 2018-12-18 {
 		description "Remove delete action and instead handle the removal in end action";
