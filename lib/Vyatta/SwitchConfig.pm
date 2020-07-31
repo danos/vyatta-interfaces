@@ -2,7 +2,7 @@
 # Functions to assist with maintenance of switch configuration.
 # Derived class of FeatureConfig
 #
-# Copyright (c) 2018-2019 AT&T Intellectual Property.
+# Copyright (c) 2018-2020 AT&T Intellectual Property.
 #    All Rights Reserved.
 #
 # SPDX-License-Identifier: LGPL-2.1-only
@@ -13,6 +13,7 @@ use warnings;
 use File::Slurp;
 use Vyatta::FeatureConfig qw(setup_cfg_file set_cfg get_cfg get_cfg_file
   get_default_cfg del_cfg get_cfg_value);
+use Vyatta::PortMonitor qw(get_portmonitor_destination_intflist);
 use File::Temp ();
 
 require Exporter;
@@ -300,6 +301,7 @@ sub get_default_switchports {
     my $client          = Vyatta::Configd::Client->new();
     my %swports         = get_hwcfg();
     my @default_swports = ();
+    my @portmon_dest = get_portmonitor_destination_intflist();
 
     foreach my $swport ( keys %swports ) {
         my $cfg_str = "interfaces dataplane $swport";
@@ -307,6 +309,8 @@ sub get_default_switchports {
         next
           if ( grep /(bridge-group|switch-group|address|bond-group)/,
             @{$ifcfg} );
+        next
+          if ( grep /$swport/, @portmon_dest );
         next
           if (
             $client->node_exists(

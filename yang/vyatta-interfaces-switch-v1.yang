@@ -23,6 +23,12 @@ module vyatta-interfaces-switch-v1 {
 	import vyatta-interfaces-bridge-state-v1 {
 		prefix br-state;
 	}
+	import vyatta-services-v1 {
+		prefix service;
+	}
+	import vyatta-service-portmonitor-v1 {
+		prefix pm;
+	}
 
 	organization "AT&T Inc.";
 	contact
@@ -33,7 +39,7 @@ module vyatta-interfaces-switch-v1 {
 		 Web: www.att.com";
 
 	description
-		"Copyright (c) 2017-2019, AT&T Intellectual Property.
+		"Copyright (c) 2017-2020, AT&T Intellectual Property.
 		 All rights reserved.
 
 		 Copyright (c) 2016-2017 by Brocade Communications Systems, Inc.
@@ -74,6 +80,9 @@ module vyatta-interfaces-switch-v1 {
 		 allowed VLANs, a PVID, and a set of VLANs to untag on egress
 		 from a port.";
 
+	revision 2020-07-30 {
+		description "Add end action to handle portmonitor updates";
+	}
 	revision 2019-10-11 {
 		description "QoS config moved to VCI, call to qos-commit.pl removed";
 	}
@@ -481,6 +490,10 @@ module vyatta-interfaces-switch-v1 {
 	}
 
 	augment /if:interfaces {
+		configd:end "vyatta-switch --action=set-default-state-and-update";
+	}
+
+	augment /service:service/pm:portmonitor {
 		configd:end "vyatta-switch --action=set-default-state-and-update";
 	}
 }

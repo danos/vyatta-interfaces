@@ -98,6 +98,7 @@ Depends:
  libfile-slurp-perl,
  libio-interface-perl,
  libreadonly-perl,
+ libvyatta-portmonitor (>= 3.7),
  iproute2 (>= 4.19.0-0vyatta2),
  vyatta-vrrp (>= 3.0),
  ${misc:Depends},
