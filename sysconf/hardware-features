@@ -12,6 +12,7 @@
 security.vpn.ipsec=1
 security.storm-control=1
 bonding.hardware-members-only=1
+portmonitor.hardware-only=1
 
 [hardware-interface-features]
 address.bonding=1
