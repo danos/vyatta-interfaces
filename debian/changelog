@@ -1,3 +1,12 @@
+vyatta-interfaces (1.84.4) unstable; urgency=medium
+
+  [ Thomas Kiely ]
+  * Do not set ttl to 0 when nopmtudisc is set
+  * Remove restriction on setting ttl and nopmtudisc.
+  * Add missing semocolon to description
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Mon, 17 Aug 2020 07:21:35 -0700
+
 vyatta-interfaces (1.84.3) unstable; urgency=medium
 
   * lib: fix getIP error message
