@@ -1,3 +1,14 @@
+vyatta-interfaces (1.94) unstable; urgency=medium
+
+  [ Shweta Choudaha ]
+  * hadware-feature: Portmonitor in hardware only
+  * Do not add hw portmonitor dest intf to hw switch
+
+  [ bs775m ]
+  * vyatta-interface:add support for enb/dis pausefram
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Fri, 21 Aug 2020 10:39:18 -0700
+
 vyatta-interfaces (1.93) unstable; urgency=medium
 
   [ Thomas Kiely ]
