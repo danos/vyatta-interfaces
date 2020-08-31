@@ -557,35 +557,32 @@ sub set_default_state {
             }
             note_interface_switchport_attr_set($swport);
         } elsif ( $platf_type eq 'router' ) {
+            next
+              unless is_interface_enslaved($swport)
+              || !is_interface_switchport_attr_set($swport);
+
             if ( is_interface_enslaved($swport) ) {
                 system("logger Isolating interface $swport\n");
                 my $cur_sw_name = get_current_softswitch_name($swport);
                 delete_interface( $cur_sw_name, $swport );
-                update_port_attr( $swport, "hw-switching", "disable", 'SET' )
-                  if $platf_type ne $def_platf_type;
-                note_interface_switchport_attr_set($swport);
-            } elsif ( !is_interface_switchport_attr_set($swport) ) {
-
-                # Assume the default platform type is the one that can
-                # do hardware switching, so if the default is router
-                # then we should set hw-switching enabled.
-                if ( $platf_type eq $def_platf_type ) {
-                    update_port_attr( $swport, "hw-switching", "enable",
-                        'SET' );
-                } elsif ( $def_hw_router_intf eq 'yes' ) {
-
-                    # Even if the platform type is not set to the default
-                    # but it is still capable of supporting router interfaces
-                    # in the hardware, we still mark the interfaces as
-                    # hw-switching enable
-                    update_port_attr( $swport, "hw-switching", "enable",
-                        'SET' );
-                } else {
-                    update_port_attr( $swport, "hw-switching", "disable",
-                        'SET' );
-                }
-                note_interface_switchport_attr_set($swport);
             }
+
+            # Assume the default platform type is the one that can
+            # do hardware switching, so if the default is router
+            # then we should set hw-switching enabled.
+            if ( $platf_type eq $def_platf_type ) {
+                update_port_attr( $swport, "hw-switching", "enable", 'SET' );
+            } elsif ( $def_hw_router_intf eq 'yes' ) {
+
+                # Even if the platform type is not set to the default
+                # but it is still capable of supporting router interfaces
+                # in the hardware, we still mark the interfaces as
+                # hw-switching enable
+                update_port_attr( $swport, "hw-switching", "enable", 'SET' );
+            } else {
+                update_port_attr( $swport, "hw-switching", "disable", 'SET' );
+            }
+            note_interface_switchport_attr_set($swport);
         } elsif ( $platf_type eq 'switch' ) {
 
             # Make sure the intf isn't already enslaved to a switch or a
