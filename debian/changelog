@@ -1,3 +1,15 @@
+vyatta-interfaces (1.93.1) unstable; urgency=medium
+
+  [ Robert Shearman ]
+  * hardware-features: block firewall config on hardware interfaces
+    (Fixes: VRVDR-52465)
+
+  [ Mark Gillott ]
+  * Ensure hardware-switching is set correctly on router platform
+    (Fixes: VRVDR-52715)
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Tue, 01 Sep 2020 08:57:50 -0700
+
 vyatta-interfaces (1.93) unstable; urgency=medium
 
   [ Thomas Kiely ]
