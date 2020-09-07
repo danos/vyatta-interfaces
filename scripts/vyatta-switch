@@ -25,6 +25,7 @@ use Vyatta::SwitchConfig qw(create_hwcfg get_hwcfg get_default_switchports
   get_physical_switches get_current_softswitch_name update_port_attr
   interface_exists);
 use Vyatta::PlatformConfig qw(get_cfg);
+use Vyatta::RestoreIPv6Addr;
 use Try::Tiny;
 
 Readonly my $SCRIPT_NAME => basename($0);
@@ -380,11 +381,11 @@ sub switch_remove_restore_addr {
     }
 }
 
-sub delete_interface {
-    my ( $brname, $ifname ) = @_;
+sub delete_ipv6_disable {
+    my ($ifname) = @_;
 
-    system("brctl delif $brname $ifname");
-    switch_remove_restore_addr($ifname);
+    my $disabled = Vyatta::RestoreIPv6Addr::ipv6_disabled($ifname);
+    return unless defined($disabled) && $disabled;
 
     my $intf = Vyatta::Interface->new($ifname);
     if ( !$intf ) {
@@ -407,6 +408,14 @@ sub delete_interface {
         # if the node_exists fails then enable v6 as diasble config is not valid
         system( "/opt/vyatta/sbin/vyatta-ipv6-disable", "delete", "$ifname" );
     };
+}
+
+sub delete_interface {
+    my ( $brname, $ifname ) = @_;
+
+    system("brctl delif $brname $ifname");
+    switch_remove_restore_addr($ifname);
+    delete_ipv6_disable($ifname);
 }
 
 sub delete_interface_cmd {
@@ -754,8 +763,11 @@ sub update_interfaces {
         update_switch($configured_switch) if defined $configured_switch;
 
         if ( not defined $current_switch and not defined $configured_switch ) {
-
-            # nothing to do
+            #
+            # Interface not linked to any switch, ensure the
+            # "disable_ipv6" attribute is (has been) deleted (cleared)
+            #
+            delete_ipv6_disable($ifname);
         } elsif ( not defined $current_switch and $configured_switch ) {
 
             # add the interface to the switch
