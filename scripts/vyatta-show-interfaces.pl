@@ -651,6 +651,23 @@ sub run_show_intf_extensive {
         my $statistics  = $interfaces{$intf}->{'statistics'};
         my $xstatistics = $interfaces{$intf}->{'xstatistics'};
 
+        # Adjust counters for clear
+        my $combined_stats = {%$statistics, %$xstatistics};
+        my $dpintf  = new Vyatta::Interface($intf);
+        my $dpid    = $dpintf->dpid();
+        my %dpclear =
+          get_dataplane_clear_stats( $intf, $dpid, $combined_stats );
+
+        foreach my $key (keys(%dpclear)) {
+            if ( defined( $xstatistics->{$key} ) ) {
+               $xstatistics->{$key} =
+                   get_counter_val( $dpclear{$key}, $xstatistics->{$key} );
+            } else {
+               $statistics->{$key} =
+                   get_counter_val( $dpclear{$key}, $statistics->{$key} );
+            }
+        }
+
         my @keys = ( keys(%$statistics), keys(%$xstatistics) );
         my @sortedkeys = sort(@keys);
 
