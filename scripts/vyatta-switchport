@@ -24,6 +24,7 @@ use Vyatta::Misc;
 use Vyatta::VPlaned;
 use Vyatta::SwitchConfig qw(get_hwcfg get_physical_switches
   get_default_switchports check_software_features);
+use Vyatta::Platform qw(get_platform_type_and_default);
 
 Readonly my $SCRIPT_NAME => basename($0);
 
@@ -98,6 +99,10 @@ sub update_physical_switch {
         "sw-name=s"    => \$swname,
     ) or $usage->();
     $usage->() unless defined $phy_switch and defined $swname;
+
+    # There are no implicit switch bindings if this is a router platform
+    my ( $platf_type, $def_platf_type ) = get_platform_type_and_default();
+    return if $platf_type ne 'switch';
 
     my $read_ifindex = sub {
         my ($file) = @_;
