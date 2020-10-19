@@ -36,12 +36,14 @@ my $client = Vyatta::Configd::Client->new();
 sub get_platform_type_and_default {
     return unless eval 'use Vyatta::PlatformConfig; 1';
 
-    my ( $platf_type, $def_platf_type );
+    my ( $platf_type, $def_platf_type, @cfg_platf_type );
 
     $def_platf_type = Vyatta::PlatformConfig::get_cfg( 'platform-type', 1 );
     return unless defined($def_platf_type) && $def_platf_type ne "";
 
-    $platf_type = Vyatta::PlatformConfig::get_cfg('platform-type');
+    @cfg_platf_type = $client->node_get( $Vyatta::Configd::Client::AUTO,
+        'system platform type' );
+    $platf_type = $cfg_platf_type[0] if @cfg_platf_type;
     if ( !defined($platf_type) || $platf_type eq "" ) {
         $platf_type = $def_platf_type;
     }
