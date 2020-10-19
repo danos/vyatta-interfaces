@@ -1,3 +1,11 @@
+vyatta-interfaces (1.96) unstable; urgency=medium
+
+  [ Mark Gillott ]
+  * switch: ensure disable_ipv6 is deleted when switch-port is deleted
+    (Fixes: VRVDR-45948)
+
+ -- Nicholas Brown <nick.brown@att.com>  Mon, 19 Oct 2020 18:14:36 +0100
+
 vyatta-interfaces (1.95) unstable; urgency=medium
 
   [ Robert Shearman ]
