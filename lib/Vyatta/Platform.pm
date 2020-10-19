@@ -18,7 +18,7 @@ require Exporter;
 
 our @ISA = qw (Exporter);
 our @EXPORT_OK =
-  qw (check_interface_features check_security_features check_proxy_arp get_platform_feature_limits is_supported_platform_feature);
+  qw (check_interface_features check_security_features check_proxy_arp get_platform_feature_limits is_supported_platform_feature get_platform_type_and_default);
 
 Readonly my $PLATFORM_CONF      => '/run/dataplane/platform.conf';
 Readonly my $PLATFORM_HW        => '/opt/vyatta/etc/hardware-features';
@@ -33,7 +33,7 @@ Readonly my $ALL_INTERFACE_FEATURE_SECTION => 'all-interface-features';
 
 my $client = Vyatta::Configd::Client->new();
 
-sub get_platform_type {
+sub get_platform_type_and_default {
     return unless eval 'use Vyatta::PlatformConfig; 1';
 
     my ( $platf_type, $def_platf_type );
@@ -45,6 +45,12 @@ sub get_platform_type {
     if ( !defined($platf_type) || $platf_type eq "" ) {
         $platf_type = $def_platf_type;
     }
+
+    return ( $platf_type, $def_platf_type );
+}
+
+sub get_platform_type {
+    my ( $platf_type, $def_platf_type ) = get_platform_type_and_default();
 
     return $platf_type;
 }

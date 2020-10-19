@@ -25,6 +25,7 @@ use Vyatta::SwitchConfig qw(create_hwcfg get_hwcfg get_default_switchports
   get_physical_switches get_current_softswitch_name update_port_attr
   interface_exists);
 use Vyatta::PlatformConfig qw(get_cfg);
+use Vyatta::Platform qw(get_platform_type_and_default);
 use Vyatta::RestoreIPv6Addr;
 use Try::Tiny;
 
@@ -809,19 +810,6 @@ sub lock {
 sub unlock {
     open our $file, '<', $0 or die;
     flock( $file, LOCK_UN );
-}
-
-sub get_platform_type_and_default {
-    my $def_platf_type = get_cfg( 'platform-type', 1 );
-    die "Default platform type not found"
-      unless defined($def_platf_type) && $def_platf_type ne "";
-
-    my $platf_type = get_cfg('platform-type');
-    if ( !defined($platf_type) || $platf_type eq "" ) {
-        $platf_type = $def_platf_type;
-    }
-
-    return ( $platf_type, $def_platf_type );
 }
 
 sub get_default_hw_router_intf_cap {
