@@ -6,9 +6,9 @@
 import configparser
 import re
 
-def get_switch_cfg():
-    SWITCH_CONF = '/run/vyatta/switch.conf'
+SWITCH_CONF = '/run/vyatta/switch.conf'
 
+def get_switch_cfg():
     class switchConfig:
         def __init__(self, config):
             self.config = config
@@ -53,3 +53,20 @@ def is_switch_port(interface_name):
                 if interface_name == port_name:
                     return True
     return False
+
+if __name__ == "__main__":
+    SWITCH_CONF = './switch.conf'
+    config = get_switch_cfg()
+    assert config != None
+    assert config.hwSwitchCount() == 1
+    assert config.hwSwitchId(0) == 0
+    assert config.hwSwitchId(1) == None
+    assert config.hwSwitchIntfs(0) != None
+    assert config.hwSwitchIntfs(1) == None
+    assert is_switch_port('foo') == False
+    assert is_switch_port('dp0xe0') == True
+    assert is_switch_port('dp0xe1') == True
+    assert is_switch_port('dp0xe99') == False
+    assert is_switch_port('dp0ce0') == True
+    assert is_switch_port('dp0ce0p0') == True
+    assert is_switch_port('dp0ce0p1') == True
