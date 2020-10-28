@@ -1,3 +1,10 @@
+vyatta-interfaces (1.98) unstable; urgency=medium
+
+  [ Karthik Murugesan ]
+  * vyatta-interfaces: Clear dataplane ext counters
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Wed, 28 Oct 2020 15:12:55 -0700
+
 vyatta-interfaces (1.97) unstable; urgency=medium
 
   [ Robert Shearman ]
