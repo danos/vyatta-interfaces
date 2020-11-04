@@ -341,6 +341,16 @@ sub hw_address {
     return $address;
 }
 
+sub bandwidth {
+    my $self = shift;
+
+    my $bw =
+      read_file( "/sys/class/net/$self->{name}/speed", err_mode => 'quiet' );
+
+    chomp $bw if $bw;
+    return $bw;
+}
+
 sub is_broadcast {
     my $self  = shift;
     my $flags = $self->flags();

@@ -318,6 +318,12 @@ sub run_show_intf {
             print "    Description: $description\n";
         }
         print "\n";
+
+        my $bandwidth = $interface->bandwidth();
+        if ( defined $bandwidth and $bandwidth ne "" ) {
+            print "    Bandwidth: $bandwidth Mbps\n";
+        }
+
         my %stats = get_intf_stats( $intf, ( @rx_stat_vars, @tx_stat_vars ) );
 
         my $fmt = "    %10s %10s %10s %10s %10s %10s\n";
