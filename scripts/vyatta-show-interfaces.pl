@@ -58,6 +58,7 @@ BEGIN {
 my %action_hash = (
     'allowed'        => \&run_allowed,
     'show'           => \&run_show_intf,
+    'show-plat'      => \&run_show_intf_plat,
     'show-brief'     => \&run_show_intf_brief,
     'show-count'     => \&run_show_counters,
     'show-extensive' => \&run_show_intf_extensive,
@@ -333,6 +334,13 @@ sub run_show_intf {
         printf( $fmt,
             map { get_counter_val( $clear{$_}, $stats{$_} ) } @tx_stat_vars );
     }
+}
+
+sub run_show_intf_plat {
+    my $intf = shift;
+
+    run_show_intf($intf);
+    show_dataplane_interfaces_platform($intf);
 }
 
 sub show_intf_system {
