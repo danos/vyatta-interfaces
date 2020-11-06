@@ -273,6 +273,7 @@ sub vlan {
             "interfaces $self->{type} $self->{dev} vif $self->{vif}");
 
         my $vlan     = $config->returnOrigValue("vlan");
+        $vlan = $self->{vif} if !defined $vlan;
         my $inner    = $config->returnOrigValue("inner-vlan");
         my $vlan_str = defined($inner) ? $vlan . '.' . $inner : $vlan;
 
