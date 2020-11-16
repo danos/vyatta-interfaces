@@ -670,7 +670,7 @@ sub run_show_intf_extensive {
             if ( defined( $xstatistics->{$key} ) ) {
                $xstatistics->{$key} =
                    get_counter_val( $dpclear{$key}, $xstatistics->{$key} );
-            } else {
+            } elsif ( defined( $statistics->{$key} ) ) {
                $statistics->{$key} =
                    get_counter_val( $dpclear{$key}, $statistics->{$key} );
             }
