@@ -765,10 +765,31 @@ sub update_interfaces {
 
         if ( not defined $current_switch and not defined $configured_switch ) {
             #
-            # Interface not linked to any switch, ensure the
-            # "disable_ipv6" attribute is (has been) deleted (cleared)
+            # Interface no longer linked to any switch. Has the
+            # binding just been removed? If so ensure the
+            # "disable_ipv6" attribute is (has been) deleted
+            # (cleared).
             #
-            delete_ipv6_disable($ifname);
+            # This condition occurs when both the switch and the
+            # interface binding (switch-group) are deleted at the same
+            # time. The YANG priorities result in the switch being
+            # deleted before the binding can be formally processed
+            # (delete_interface()) - the above cached_interfaces check
+            # fails.
+            #
+            my $path = sprintf "interfaces %s %s switch-group switch",
+              $interface->type(), $ifname;
+            try {
+                if (
+                    $client->node_exists(
+                        $Vyatta::Configd::Client::DELETED, $path
+                    )
+                  )
+                {
+                    delete_ipv6_disable($ifname);
+                }
+            };
+
         } elsif ( not defined $current_switch and $configured_switch ) {
 
             # add the interface to the switch
