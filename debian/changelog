@@ -1,3 +1,13 @@
+vyatta-interfaces (1.100) unstable; urgency=medium
+
+  [ Robert Shearman ]
+  * Interface.pm: return a valid from the vlan sub when vlan not configured
+
+  [ Paul Atkins ]
+  * vyatta-show-interfaces: add an option to show platform state for vifs
+
+ -- James Wheatley <jammy@att.com>  Thu, 19 Nov 2020 11:51:04 +0000
+
 vyatta-interfaces (1.99) unstable; urgency=medium
 
   [ Charles (Chas) Williams ]
