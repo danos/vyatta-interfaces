@@ -1,3 +1,10 @@
+vyatta-interfaces (1.99.2) unstable; urgency=medium
+
+  [ Karthik Murugesan ]
+  * Added a check to verify stat is defined in stats file before processing clear
+
+ -- Srinivas Narayan <narayan@mail.eng.vyatta.net>  Thu, 26 Nov 2020 15:31:58 +0000
+
 vyatta-interfaces (1.99.1) unstable; urgency=medium
 
   [ Mark Gillott ]
