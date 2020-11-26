@@ -1,3 +1,11 @@
+vyatta-interfaces (1.99.1) unstable; urgency=medium
+
+  [ Mark Gillott ]
+  * switch: ensure disable_ipv6 is deleted only when binding is deleted
+    (Fixes: VRVDR-53629)
+
+ -- Srinivas Narayan <narayan@mail.eng.vyatta.net>  Thu, 26 Nov 2020 15:19:13 +0000
+
 vyatta-interfaces (1.99) unstable; urgency=medium
 
   [ Charles (Chas) Williams ]
