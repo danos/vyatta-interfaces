@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# Copyright (c) 2018, AT&T Intellectual Property. All rights reserved.
+# Copyright (c) 2018-2020, AT&T Intellectual Property. All rights reserved.
 #
 # SPDX-License-Identifier: GPL-2.0-only
 #
@@ -68,7 +68,7 @@ sub setup_garp {
         }
     );
 
-    $cstore->store_pb( "garp $ifname $pkt", $garpconfig, "vyatta:cmd_arp_cfg",
+    $cstore->store_pb( "garp $ifname $pkt", $garpconfig, "vyatta:garp",
         "$ifname");
 }
 
