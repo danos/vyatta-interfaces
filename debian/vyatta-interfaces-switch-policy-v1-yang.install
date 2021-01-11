@@ -1,1 +1,2 @@
 usr/share/configd/yang/vyatta-interfaces-switch-policy-v1.yang
+platform/vyatta-interfaces-switch-policy-qos.platform /lib/vyatta-platform/platforms

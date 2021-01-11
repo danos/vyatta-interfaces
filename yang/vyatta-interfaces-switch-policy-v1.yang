@@ -17,6 +17,13 @@ module vyatta-interfaces-switch-policy-v1 {
 	import vyatta-interfaces-switch-v1 {
 		prefix sw;
 	}
+	import vyatta-interfaces-bonding-v1 {
+		prefix bonding;
+	}
+	import vyatta-interfaces-bonding-switch-v1 {
+		prefix bd-sw;
+	}
+
 
 	organization "AT&T Inc.";
 	contact
@@ -27,7 +34,7 @@ module vyatta-interfaces-switch-policy-v1 {
 		 Web: www.att.com";
 
 	description
-		"Copyright (c) 2018 AT&T Intellectual Property
+		"Copyright (c) 2018-2021 AT&T Intellectual Property
 		 All rights reserved.
 
 		 Redistribution and use in source and binary forms, with or
@@ -61,6 +68,9 @@ module vyatta-interfaces-switch-policy-v1 {
 
 		 The YANG module for enabling policy configuration on switch interfaces";
 
+	revision 2021-01-07 {
+		description "Added support for LAG QoS.";
+	}
 	revision 2018-08-27 {
 		description "Added Qos policies under the interface
 			     switch-group CLI tree.";
@@ -69,7 +79,16 @@ module vyatta-interfaces-switch-policy-v1 {
 		description "Initial revision of version 1.";
 	}
 
+	feature hardware-qos-bond {
+		description "Hardware-based QoS on bonding groups";
+	}
+
 	augment /if:interfaces/dp:dataplane/dp-sw:switch-group/dp-sw:port-parameters {
+		uses policy:policy-binding;
+	}
+
+	augment /if:interfaces/bonding:bonding/bd-sw:switch-group/bd-sw:port-parameters {
+		if-feature hardware-qos-bond;
 		uses policy:policy-binding;
 	}
 
