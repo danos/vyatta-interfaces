@@ -1,3 +1,20 @@
+vyatta-interfaces (2.1) unstable; urgency=medium
+
+  [ Mark Gillott ]
+  * switch: ensure disable_ipv6 is deleted only when binding is deleted
+    (Fixes: VRVDR-53629)
+
+  [ Dewi Morgan ]
+  * interface: include interface bandwidth output
+
+  [ Mike Manning ]
+  * GArp protobuf command has changed from cmd_arp_cfg to garp
+
+  [ Vinicius Soares ]
+  * QoS: Added support to hw-based QoS on bonding groups (SIAD) - data model
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Tue, 23 Feb 2021 09:23:22 -0800
+
 vyatta-interfaces (2.0) unstable; urgency=medium
 
   [ Karthik Murugesan ]
