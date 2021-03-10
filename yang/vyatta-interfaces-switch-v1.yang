@@ -39,7 +39,7 @@ module vyatta-interfaces-switch-v1 {
 		 Web: www.att.com";
 
 	description
-		"Copyright (c) 2017-2020, AT&T Intellectual Property.
+		"Copyright (c) 2017-2021, AT&T Intellectual Property.
 		 All rights reserved.
 
 		 Copyright (c) 2016-2017 by Brocade Communications Systems, Inc.
@@ -80,6 +80,9 @@ module vyatta-interfaces-switch-v1 {
 		 allowed VLANs, a PVID, and a set of VLANs to untag on egress
 		 from a port.";
 
+	revision 2021-03-11 {
+		description "Add L2 mac aging configuration for switch";
+	}
 	revision 2020-07-30 {
 		description "Add end action to handle portmonitor updates";
 	}
@@ -301,6 +304,17 @@ module vyatta-interfaces-switch-v1 {
 				configd:help "Enable multicast forwarding";
 				configd:create "vyatta-interfaces-bridge --action=set_multicast_router --bridge=$VAR(../@)";
 				configd:delete "vyatta-interfaces-bridge --action=del_multicast_router --bridge=$VAR(../@)";
+				configd:priority 321;
+			}
+			leaf aging {
+				type uint32 {
+					range "0|10..1000000";
+				}
+				default "300";
+				units "seconds";
+				description "Interval, in seconds, that learnt MAC addresses are retained (0 for no aging, default:300).";
+				configd:help "Interval, in seconds, that learnt MAC addresses are retained (0 for no aging, default:300)";
+				configd:update "vyatta-interfaces-bridge --action=set_ageing --bridge=$VAR(../@) --val=$VAR(@)";
 				configd:priority 321;
 			}
 			leaf disable-link-detect {
