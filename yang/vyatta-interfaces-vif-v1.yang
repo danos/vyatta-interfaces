@@ -21,7 +21,7 @@ module vyatta-interfaces-vif-v1 {
 		 Web: www.att.com";
 
 	description
-		"Copyright (c) 2017-2019, AT&T Intellectual Property.
+		"Copyright (c) 2017-2019, 2021 AT&T Intellectual Property.
 		 All rights reserved.
 
 		 Copyright (c) 2015-2016 by Brocade Communications Systems, Inc.
@@ -56,8 +56,11 @@ module vyatta-interfaces-vif-v1 {
 
 		 SPDX-License-Identifier: BSD-3-Clause
 
-		 Vyatta system-level configuration utiliites, templates and scripts.";
+		 YANG module for Vyatta system-level configuration.";
 
+	revision 2021-03-16 {
+		description "Updated description";
+	}
 	revision 2016-03-28 {
 		description "Remove use of bash in action scripts";
 	}
