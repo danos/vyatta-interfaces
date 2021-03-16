@@ -18,7 +18,7 @@ module vyatta-interfaces-vif-v2 {
 		 Web: www.att.com";
 
 	description
-		"Copyright (c) 2017-2019, AT&T Intellectual Property.
+		"Copyright (c) 2017-2019, 2021 AT&T Intellectual Property.
 		 All rights reserved.
 		 Copyright (c) 2015-2016 by Brocade Communications Systems, Inc.
 		 All rights reserved.
@@ -52,8 +52,11 @@ module vyatta-interfaces-vif-v2 {
 
 		 SPDX-License-Identifier: BSD-3-Clause
 
-		 Vyatta system-level configuration utiliites, templates and scripts.";
+		 YANG module for Vyatta system-level configuration.";
 
+	revision 2021-03-16 {
+		description "Updated description";
+	}
 	revision 2019-02-04 {
 		description
 			"Remove per vlan-protocol update actions. These should be done by
