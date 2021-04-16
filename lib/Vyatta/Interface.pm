@@ -157,9 +157,10 @@ sub new {
             system("logger Failed to find transmit interface for $name\n");
             return;
         };
+        return unless($transmit_intf->{"receive"} && $transmit_intf->{"group"});
         $dev  = $transmit_intf->{"receive"};
         $vrid = $transmit_intf->{"group"};
-        if ( $vrid eq 0 ) {
+        if ( $vrid == 0 ) {
 
             #keepalived is not running so return
             return;
