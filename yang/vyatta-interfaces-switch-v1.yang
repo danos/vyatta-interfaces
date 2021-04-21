@@ -80,6 +80,9 @@ module vyatta-interfaces-switch-v1 {
 		 allowed VLANs, a PVID, and a set of VLANs to untag on egress
 		 from a port.";
 
+	revision 2020-08-30 {
+		description "Add configd:must for more efficient VIF validation";
+	}
 	revision 2020-07-30 {
 		description "Add end action to handle portmonitor updates";
 	}
@@ -324,6 +327,13 @@ module vyatta-interfaces-switch-v1 {
 				}
 			}
 			uses vif:vif-group;
+			must "true()" {
+				configd:must "validate-vif-vlan-settings(.)";
+				error-message
+					"Either one or more VIFs share the same VLAN ID without
+					 different inner vlans, or one or more VIFs without explicit
+					 VLAN ID set match the explicit VLAN ID on another VIF.";
+			}
 		}
 
 		container switch-state {

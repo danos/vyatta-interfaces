@@ -54,6 +54,9 @@ module vyatta-interfaces-vif-v2 {
 
 		 YANG module for Vyatta system-level configuration.";
 
+	revision 2021-04-21 {
+		description "Add configd:must for more efficient VIF validation";
+	}
 	revision 2021-03-16 {
 		description "Updated description";
 	}
@@ -156,6 +159,8 @@ module vyatta-interfaces-vif-v2 {
 
 			must "(string-length(../*[local-name(.) = 'tagnode' or local-name(.) = 'ifname' or local-name(.) = 'name']) + string-length(tagnode)) < 15" {
 				error-message "Interface (Interface name + VIF) will be too long--Needs to be less than 15 characters.  Please reduce the length of the VIF.";
+				configd:must "(parent-interface-string-length(.) + " +
+					"string-length(tagnode)) < 15";
 			}
 
 			must "(tagnode <= 4094) or vlan" {
@@ -167,11 +172,13 @@ module vyatta-interfaces-vif-v2 {
 				"count(../vif[vlan=current()/vlan]))" {
 				error-message "VIFs may only share same VLAN ID if they " +
 					"have a different inner-vlan.";
+				configd:must "check-vlan-values-do-not-conflict(.)";
 			}
 
 			must "vlan or inner-vlan or not(../vif[vlan=current()/tagnode])" {
 				error-message "VIFs may only share same VLAN if they " +
 					"have a different inner-vlan.";
+				configd:must "check-implicit-vlan-id-unique(.)";
 			}
 
 			must "not(address = 'dhcp' and address[contains(., '.')])" {
@@ -238,6 +245,8 @@ module vyatta-interfaces-vif-v2 {
 
 			must "(string-length(../*[local-name(.) = 'tagnode' or local-name(.) = 'ifname' or local-name(.) = 'name']) + string-length(tagnode)) < 15" {
 				error-message "Interface (Interface name + VIF) will be too long--Needs to be less than 15 characters.  Please reduce the length of the VIF.";
+				configd:must "(parent-interface-string-length(.) + " +
+					"string-length(tagnode)) < 15";
 			}
 
 			must "(tagnode <= 4094) or vlan" {
@@ -249,11 +258,21 @@ module vyatta-interfaces-vif-v2 {
 				"count(../vif[vlan=current()/vlan]))" {
 				error-message "VIFs may only share same VLAN ID if they " +
 					"have a different inner-vlan.";
+				// If we are validating on-box, we use an XPATH plugin to run
+				// this check per-interface not per-VIF, which is much more
+				// efficient. Use validate-vif-vlan-settings() on interface
+				// node.
+				configd:must "true()";
 			}
 
 			must "vlan or inner-vlan or not(../vif[vlan=current()/tagnode])" {
 				error-message "VIFs may only share same VLAN if they " +
 					"have a different inner-vlan.";
+				// If we are validating on-box, we use an XPATH plugin to run
+				// this check per-interface not per-VIF, which is much more
+				// efficient. Use validate-vif-vlan-settings() on interface
+				// node.
+				configd:must "true()";
 			}
 
 			must "not(address = 'dhcp' and address[contains(., '.')])" {
