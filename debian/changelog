@@ -1,3 +1,13 @@
+vyatta-interfaces (2.2) unstable; urgency=medium
+
+  [ Yuanzhang Hu ]
+  * L2Mac: L2 mac aging configurable for switches (Bugfix: VRVDR-47535)
+
+  [ Paul Aitken ]
+  * Fix incorrect YANG descriptions
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Fri, 23 Apr 2021 13:59:23 -0700
+
 vyatta-interfaces (2.1) unstable; urgency=medium
 
   [ Mark Gillott ]
