@@ -1,3 +1,10 @@
+vyatta-interfaces (2.3) unstable; urgency=medium
+
+  [ William Ivory ]
+  * Improve efficiency of VIF validation.
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Mon, 26 Apr 2021 09:32:40 -0700
+
 vyatta-interfaces (2.2) unstable; urgency=medium
 
   [ Yuanzhang Hu ]
