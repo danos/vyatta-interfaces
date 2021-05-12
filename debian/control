@@ -9,6 +9,8 @@ Build-Depends:
  debhelper (>= 9.20160709) | dh-systemd (>= 1.5),
  dh-yang,
  dh-python,
+ golang-go,
+ golang-github-danos-vci-dev,
  libconfig-tiny-perl,
  libreadonly-perl,
  libfile-slurp-perl,
@@ -120,10 +122,10 @@ Description: Interface and VRF related perl module
  Interface related perl modules dealing with VRF
 
 Package: vyatta-interfaces-v1-yang
-Architecture: all
+Architecture: any
 Conflicts: vyatta-cfg (<< 1.20)
 Replaces: vyatta-cfg (<< 1.20)
-Depends: vyatta-interfaces, ${misc:Depends}, ${yang:Depends}
+Depends: vyatta-interfaces, ${misc:Depends}, ${shlibs:Depends}, ${yang:Depends}
 Description: vyatta-interfaces-v1 module
  The YANG module for vyatta-interfaces-v1
 
