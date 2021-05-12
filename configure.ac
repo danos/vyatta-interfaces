@@ -7,7 +7,7 @@ AM_INIT_AUTOMAKE([gnu no-dist-gzip dist-bzip2 subdir-objects])
 AC_PREFIX_DEFAULT([/opt/vyatta])
 
 AC_CONFIG_FILES(
-  [Makefile tests/Makefile])
+  [Makefile tests/Makefile notify-intf/Makefile])
 
 AC_PROG_CC
 AC_PROG_CXX

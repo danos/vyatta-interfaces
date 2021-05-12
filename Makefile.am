@@ -1,4 +1,4 @@
-SUBDIRS = . tests
+SUBDIRS = . tests notify-intf
 
 etcdir = /etc
 share_perl5dir = $(datarootdir)/perl5/Vyatta
