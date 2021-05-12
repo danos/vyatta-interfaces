@@ -14,7 +14,7 @@ module vyatta-interfaces-v1 {
 		 Web: www.att.com";
 
 	description
-		"Copyright (c) 2017-2019 AT&T Intellectual Property
+		"Copyright (c) 2017-2021 AT&T Intellectual Property
 		 All rights reserved.
 
 		 Copyright (c) 2014-2017 by Brocade Communications Systems, Inc.
@@ -51,6 +51,9 @@ module vyatta-interfaces-v1 {
 
 		 This module implements vyatta-interfaces-v1.";
 
+	revision 2021-05-12 {
+		description "Add interface-state notification";
+	}
 	revision 2019-03-22 {
 		description
 			"Add configd:must for more efficient interface leafref validation";
@@ -562,6 +565,31 @@ module vyatta-interfaces-v1 {
 			leaf collisions {
 				description "Number of collisions on packets transmitted";
 				type packets;
+			}
+		}
+	}
+
+	notification interface-state {
+		description "Notifies that an interface has changed state.";
+
+		container interface {
+			description "Interface's identity information";
+			leaf state {
+				description "Type of interface state update: add or remove";
+				type enumeration {
+					enum "remove" {
+						description "Interface got removed";
+					}
+					enum "add" {
+						description "Interface got added";
+					}
+				}
+				mandatory true;
+			}
+			leaf name {
+				description "Interface name";
+				type types:interface-ifname;
+				mandatory true;
 			}
 		}
 	}

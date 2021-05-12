@@ -1,1 +1,3 @@
 usr/share/configd/yang/vyatta-interfaces-v1.yang
+notify-intf/notify-intf /usr/libexec
+udev/10-vyatta-interfaces-v1.rules /lib/udev/rules.d
