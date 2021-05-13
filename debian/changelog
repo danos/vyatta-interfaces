@@ -1,3 +1,13 @@
+vyatta-interfaces (2.4) unstable; urgency=medium
+
+  [ Anthony Dempsey ]
+  * Bugfix/Check for key existence in RPC return
+
+  [ Daniel Gollub ]
+  * vyatta-interfaces-v1: introduce interface-state notification
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Thu, 13 May 2021 14:35:41 -0700
+
 vyatta-interfaces (2.3) unstable; urgency=medium
 
   [ William Ivory ]
