@@ -1,3 +1,10 @@
+vyatta-interfaces (1.99.3) unstable; urgency=medium
+
+  [ Daniel Gollub ]
+  * vyatta-interfaces-v1: introduce interface-state notification
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Thu, 13 May 2021 14:37:53 -0700
+
 vyatta-interfaces (1.99.2) unstable; urgency=medium
 
   [ Karthik Murugesan ]
