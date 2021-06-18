@@ -24,7 +24,7 @@ module vyatta-interfaces-system-v1 {
 		 Web: www.att.com";
 
 	description
-		"Copyright (c) 2017-2019, AT&T Intellectual Property.
+		"Copyright (c) 2017-2021, AT&T Intellectual Property.
 		 All rights reserved.
 
 		 Copyright (c) 2016-2017 by Brocade Communication Systems, Inc.
@@ -62,6 +62,11 @@ module vyatta-interfaces-system-v1 {
 		 Local kernel managed (administrative) system
 		 interface configuration";
 
+	revision 2021-06-21 {
+		description
+			"Fix unsafe escape sequence in double-quoted string";
+	}
+
 	revision 2017-05-16 {
 		description
 			"Call script specific to system interface at configd:end
@@ -83,7 +88,7 @@ module vyatta-interfaces-system-v1 {
 			configd:priority "310";
 			configd:help "Local administrative ethernet interface";
 			description "Local administrative ethernet interface";
-			configd:allowed "vyatta-interfaces.pl --show=system --filter='\.[0-9]+'";
+			configd:allowed 'vyatta-interfaces.pl --show=system --filter="\.[0-9]+"';
 			configd:validate "interface-address-check $VAR(@) $VAR(./address/@@)";
 			configd:create "vyatta-system-interface --action=create --device=$VAR(@)";
 			configd:delete "vyatta-system-interface --action=delete --device=$VAR(@)";
