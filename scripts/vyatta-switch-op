@@ -234,7 +234,7 @@ sub action_show_vlan_stats {
     my $tree   = $client->tree_get_full_hash('interfaces switch-state');
 
     printf
-"               Bytes       Packets     Ucast Pkts    NUcast Pkts     Drops     Errors\n";
+"               Bytes      Packets   Ucast Pkts    NUcast Pkts       Drops      Errors\n";
     for my $switch ( @{ $tree->{'switch-state'}->{'switches'} } ) {
         next if ( $switch->{'bridge-name'} ne $opt_switch );
 
@@ -242,12 +242,12 @@ sub action_show_vlan_stats {
             next if ( $opt_vlan ne "" && $value->{'vlan-id'} ne $opt_vlan );
 
             printf "Vlan %d\n", $value->{'vlan-id'};
-            printf "  RX:     %10d   %10d   %10d   %10d   %10d   %10d\n",
+            printf "  RX:     %10u   %10u   %10u   %12u   %9u   %9u\n",
               $value->{'rx-bytes'}, $value->{'rx-packets'},
               $value->{'rx-unicast-packets'},
               $value->{'rx-non-unicast-packets'}, $value->{'rx-drops'},
               $value->{'rx-errors'};
-            printf "  TX:     %10d   %10d   %10d   %10d   %10d   %10d\n",
+            printf "  TX:     %10u   %10u   %10u   %12u   %9u   %9u\n",
               $value->{'tx-bytes'}, $value->{'tx-packets'},
               $value->{'tx-unicast-packets'},
               $value->{'tx-non-unicast-packets'}, $value->{'tx-drops'},
