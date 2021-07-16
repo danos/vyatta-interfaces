@@ -51,6 +51,9 @@ module vyatta-interfaces-v1 {
 
 		 This module implements vyatta-interfaces-v1.";
 
+	revision 2021-07-16 {
+		description "Add presence to IPv6 containers";
+	}
 	revision 2021-05-12 {
 		description "Add interface-state notification";
 	}
@@ -242,6 +245,7 @@ module vyatta-interfaces-v1 {
 		}
 
 		container ipv6 {
+			presence "Indicates IPv6 configuration";
 			configd:help "IPv6 parameters";
 		}
 	}
@@ -365,6 +369,7 @@ module vyatta-interfaces-v1 {
 		}
 
 		container ipv6 {
+			presence "Indicates IPv6 configuration";
 			description "IPv6 interface parameters";
 			configd:help "IPv6 parameters";
 		}
