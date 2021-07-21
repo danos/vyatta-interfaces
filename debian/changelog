@@ -1,3 +1,16 @@
+vyatta-interfaces (2.5) unstable; urgency=medium
+
+  [ Srinivas Narayan ]
+  * Address DRAM warning
+
+  [ Kalaivani Vinothkumar ]
+  * Column Alignment in vlan statistics
+
+  [ Mike Manning ]
+  * IPv6 container should have presence for all interface types
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Wed, 21 Jul 2021 10:03:33 -0700
+
 vyatta-interfaces (2.4) unstable; urgency=medium
 
   [ Anthony Dempsey ]
