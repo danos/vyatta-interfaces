@@ -24,7 +24,7 @@ module vyatta-interfaces-tunnel-v1 {
 		 Web: www.att.com";
 
 	description
-		"Copyright (c) 2017-2018, 2020, AT&T Intellectual Property.
+		"Copyright (c) 2017-2021, AT&T Intellectual Property.
 		 All rights reserved.
 
 		 Copyright (c) 2016-2017 by Brocade Communications Systems, Inc.
@@ -61,6 +61,9 @@ module vyatta-interfaces-tunnel-v1 {
 
 		 Tunnel interface configuration";
 
+	revision 2021-07-22 {
+		description "Add constraint to disallow MTU less than 1280 on interfaces with any IPv6 configuration";
+	}
 	revision 2020-07-30 {
 		description "Remove incorrect pmtudisc/ttl validation";
 	}
@@ -274,6 +277,9 @@ module vyatta-interfaces-tunnel-v1 {
 				configd:help "Maximum Transmission Unit (MTU)";
 				configd:update "/opt/vyatta/share/tmplscripts/interfaces/tunnel/mtu/configd_update.sh";
 				configd:delete "/opt/vyatta/share/tmplscripts/interfaces/tunnel/mtu/configd_delete.sh";
+				must "not((current() < 1280) and ((../address[contains(., ':')]) or (../ipv6)))" {
+					error-message "MTU less than 1280 not permitted on interfaces with any IPv6 configuration.";
+				}
 			}
 			leaf multicast {
 				type enumeration {

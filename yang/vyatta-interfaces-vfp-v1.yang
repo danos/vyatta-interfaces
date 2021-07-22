@@ -21,7 +21,7 @@ module vyatta-interfaces-vfp-v1 {
 		 Web: www.att.com";
 
 	description
-		"Copyright (c) 2017, AT&T Intellectual Property.
+		"Copyright (c) 2017-2021, AT&T Intellectual Property.
 		 All rights reserved.
 
 		 Redistribution and use in source and binary forms, with or
@@ -58,6 +58,10 @@ module vyatta-interfaces-vfp-v1 {
 		 IPSec site-to-site tunnels in order to run features
 		 such as firewall, NAT and PBR before entering the
 		 tunnel and after exiting the tunnel.";
+
+	revision 2021-07-22 {
+		description "Add constraint to disallow MTU less than 1280 on interfaces with any IPv6 configuration";
+	}
 
 	revision 2017-11-20 {
 		description "Initial Revision";
@@ -102,6 +106,9 @@ module vyatta-interfaces-vfp-v1 {
 				description "Maximum Transmission Unit (MTU)";
 				configd:help "Maximum Transmission Unit (MTU)";
 				default "16384";
+				must "not((current() < 1280) and ((../address[contains(., ':')]) or (../ipv6)))" {
+					error-message "MTU less than 1280 not permitted on interfaces with any IPv6 configuration";
+				}
 			}
 			leaf-list address {
 				type if:address;

@@ -54,6 +54,9 @@ module vyatta-interfaces-vif-v2 {
 
 		 YANG module for Vyatta system-level configuration.";
 
+	revision 2021-07-22 {
+		description "Add constraint to disallow MTU less than 1280 on interfaces with any IPv6 configuration";
+	}
 	revision 2021-04-21 {
 		description "Add configd:must for more efficient VIF validation";
 	}
@@ -298,6 +301,9 @@ module vyatta-interfaces-vif-v2 {
 				}
 				must "not(../../*[local-name(.)='mtu']) or current() <= ../../*[local-name(.) = 'mtu']" {
 					error-message "MTU of VIF must be less than or equal to MTU of device";
+				}
+				must "not((current() < 1280) and ((../address[contains(., ':')]) or (../address = 'dhcpv6') or (../ipv6)))" {
+					error-message "MTU less than 1280 not permitted on interfaces with any IPv6 configuration.";
 				}
 				configd:priority "382";
 				configd:help "Maximum Transmission Unit (MTU)";
