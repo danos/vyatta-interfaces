@@ -68,6 +68,9 @@ module vyatta-interfaces-switch-policy-v1 {
 
 		 The YANG module for enabling policy configuration on switch interfaces";
 
+	revision 2021-07-26 {
+		description "Added support for per VLAN QoS on LAG.";
+	}
 	revision 2021-01-07 {
 		description "Added support for LAG QoS.";
 	}
@@ -88,6 +91,11 @@ module vyatta-interfaces-switch-policy-v1 {
 	}
 
 	augment /if:interfaces/bonding:bonding/bd-sw:switch-group/bd-sw:port-parameters {
+		if-feature hardware-qos-bond;
+		uses policy:policy-binding;
+	}
+
+	augment /if:interfaces/bonding:bonding/bd-sw:switch-group/bd-sw:port-parameters/bd-sw:vlan-parameters/bd-sw:qos-parameters/bd-sw:vlan {
 		if-feature hardware-qos-bond;
 		uses policy:policy-binding;
 	}
