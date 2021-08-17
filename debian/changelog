@@ -1,3 +1,10 @@
+vyatta-interfaces (2.6) unstable; urgency=medium
+
+  [ kalaivani vinothkumar ]
+  * Added must to restrict mtu if not default for IPv6
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Tue, 17 Aug 2021 10:16:55 -0700
+
 vyatta-interfaces (2.5) unstable; urgency=medium
 
   [ Srinivas Narayan ]
