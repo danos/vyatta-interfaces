@@ -1,3 +1,10 @@
+vyatta-interfaces (2.7) unstable; urgency=medium
+
+  [ Parthiban Ramalingam ]
+  * QoS: Add per VLAN QoS on LAG(L2 mode)
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Tue, 31 Aug 2021 09:42:12 -0700
+
 vyatta-interfaces (2.6) unstable; urgency=medium
 
   [ kalaivani vinothkumar ]
