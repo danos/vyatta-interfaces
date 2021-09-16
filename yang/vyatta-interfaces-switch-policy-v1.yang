@@ -68,6 +68,9 @@ module vyatta-interfaces-switch-policy-v1 {
 
 		 The YANG module for enabling policy configuration on switch interfaces";
 
+	revision 2021-09-21 {
+		description "Remove unused policy node.";
+	}
 	revision 2021-07-26 {
 		description "Added support for per VLAN QoS on LAG.";
 	}
@@ -101,10 +104,6 @@ module vyatta-interfaces-switch-policy-v1 {
 	}
 
 	augment /if:interfaces/dp:dataplane/dp-sw:switch-group/dp-sw:port-parameters/dp-sw:vlan-parameters/dp-sw:qos-parameters/dp-sw:vlan {
-		uses policy:policy-binding;
-	}
-
-	augment /if:interfaces/sw:switch/sw:default-port-parameters {
 		uses policy:policy-binding;
 	}
 
