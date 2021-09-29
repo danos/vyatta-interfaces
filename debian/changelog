@@ -1,3 +1,10 @@
+vyatta-interfaces (1.99.4) unstable; urgency=medium
+
+  [ Anthony Dempsey ]
+  * Bugfix/Check for key existence in RPC return
+
+ -- Nachiketa Prachanda <nprachan@vyatta.att-mail.com>  Wed, 29 Sep 2021 10:36:44 -0700
+
 vyatta-interfaces (1.99.3) unstable; urgency=medium
 
   [ Daniel Gollub ]
