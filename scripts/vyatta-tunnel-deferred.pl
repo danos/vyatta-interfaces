@@ -1,6 +1,6 @@
 #! /usr/bin/perl -w
 
-# Copyright (c) 2018-2019, AT&T Intellectual Property. All rights reserved.
+# Copyright (c) 2018-2021, AT&T Intellectual Property. All rights reserved.
 #
 
 # Copyright (c) 2014-2017, Brocade Communications Systems, Inc.
@@ -389,6 +389,13 @@ sub create_tunnel_now_or_defer {
     my $ip = new Net::IP($local_addr);
     if ( ( $ip->version() eq "6" ) and ( $encap eq "gre" ) ) {
         $encap = "ip6gre";
+    }
+
+    if ( defined($old_local_addr) && defined($old_encap) ) {
+        my $old_ip = new Net::IP($old_local_addr);
+        if ( ( $old_ip->version() eq "6" ) and ( $old_encap eq "gre" ) ) {
+            $old_encap = "ip6gre";
+        }
     }
 
     if ( defined($nhrp) ) {
