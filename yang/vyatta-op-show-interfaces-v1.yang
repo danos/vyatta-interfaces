@@ -9,16 +9,19 @@ module vyatta-op-show-interfaces-v1 {
 		prefix show;
 	}
 
-	organization "AT&T Inc.";
+	organization "Ciena Corporation";
 	contact
-		"AT&T
-		 Postal: 208 S. Akard Street
-		         Dallas, TX 75202
-		         USA
-		 Web: www.att.com";
+		"Web URL: https://www.ciena.com/
+		 Postal:  7035 Ridge Road
+		          Hanover, Maryland 21076
+		          U.S.A.
+		 Phone:   +1 800-921-1144
+		 Fax:     +1 410-694-5750";
 
 	description
-		"Copyright (c) 2018, AT&T Intellectual Property.
+		"Copyright (c) 2021, Ciena Corporation, All Rights Reserved.
+
+		 Copyright (c) 2018, AT&T Intellectual Property.
 		 All rights reserved.
 
 		 Redistribution and use in source and binary forms, with or
@@ -51,6 +54,10 @@ module vyatta-op-show-interfaces-v1 {
 		 SPDX-License-Identifier: BSD-3-Clause
 
 		 Defines the top 'interfaces' level under 'show' for operational CLI";
+
+	revision 2021-11-15 {
+		description "Add per interface filtering to extensive command";
+	}
 
 	revision 2018-11-14 {
 		description "Convert counters, detail and extensive templates";
@@ -85,6 +92,13 @@ module vyatta-op-show-interfaces-v1 {
 			opd:command extensive {
 				opd:help "Show extensive information of all interfaces";
 				opd:on-enter 'vyatta-show-interfaces.pl --action=show-extensive';
+
+				opd:argument if-name {
+					opd:help "Show extensive information for specified interface";
+					opd:allowed 'vyatta-interfaces.pl --show dataplane';
+					opd:on-enter 'vyatta-show-interfaces.pl --intf="$4" --action=show-extensive';
+					type string;
+				}
 			}
 		}
 	}
