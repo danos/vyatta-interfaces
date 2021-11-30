@@ -1,3 +1,16 @@
+vyatta-interfaces (2.8) unstable; urgency=medium
+
+  [ aroberts ]
+  * Remove an unused policy node.
+
+  [ Gavin Shearer ]
+  * Fix issue of IPv6 tunnel being brought down/up when base config unchanged
+
+  [ Derek Fawcus ]
+  * Allow per i/f filtering for extensive show
+
+ -- Nachiketa Prachanda <nprachan@ciena.com>  Tue, 30 Nov 2021 11:37:23 -0800
+
 vyatta-interfaces (2.7) unstable; urgency=medium
 
   [ Parthiban Ramalingam ]
