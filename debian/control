@@ -21,6 +21,7 @@ Build-Depends:
  libtest-mockobject-perl,
  libtest-output-perl,
  libtest-warn-perl,
+ libtry-tiny-perl,
  python3,
 Standards-Version: 3.9.8
 
